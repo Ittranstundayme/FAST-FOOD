@@ -22,7 +22,7 @@ if not os.path.exists(IMG_DIR):
     os.makedirs(IMG_DIR)
 
 # ---------------------------------------------------------
-# INYECCIÓN DE ESTILOS CSS (POPOVERS Y TEXTOS ARREGLADOS)
+# INYECCIÓN DE ESTILOS CSS
 # ---------------------------------------------------------
 st.markdown(
     """
@@ -47,30 +47,37 @@ st.markdown(
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
     }
 
-    /* TEXTO BLANCO ÚNICAMENTE EN LA ESTRUCTURA PRINCIPAL DE LA APP */
+    /* TEXTO BLANCO GENERAL EN LA ESTRUCTURA DE LA APP */
     .stApp p, .stApp span, .stApp label, .stApp div:not([data-baseweb]), .stApp li, .stApp td, .stApp th {
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
     }
 
-    /* -------------------------------------------------- */
-    /* FORZAR TEXTO NEGRO DENTRO DE TODO LO QUE SEA BLANCO */
-    /* -------------------------------------------------- */
-    
-    /* Popover (Recuadro blanco de editar), Menús y Listbox */
+    /* CORRECCIÓN ESPECÍFICA PARA CUADROS DE CÓDIGO Y ETIQUETAS */
+    code, .stCode, span[data-baseweb="tag"], div[data-baseweb="tag"] {
+        background-color: #334155 !important;
+        color: #38bdf8 !important;
+        -webkit-text-fill-color: #38bdf8 !important;
+        border: 1px solid #475569 !important;
+        border-radius: 6px !important;
+        padding: 2px 8px !important;
+        font-weight: bold !important;
+    }
+
+    /* POP-OVERS, MENÚS Y RECUADROS BLANCOS */
     [data-baseweb="popover"], [data-baseweb="menu"], div[role="listbox"], ul[role="listbox"], div[data-baseweb="tooltip"] {
         background-color: #ffffff !important;
         border: 1px solid #cbd5e1 !important;
     }
 
-    /* TODO el texto dentro de Popovers y Menús desplegables es NEGRO */
+    /* TODO el texto dentro de Popovers y Menús es NEGRO */
     [data-baseweb="popover"] *, [data-baseweb="menu"] *, div[role="listbox"] *, ul[role="listbox"] * {
         color: #0f172a !important;
         -webkit-text-fill-color: #0f172a !important;
         font-weight: 600 !important;
     }
 
-    /* Inputs de texto dentro del Popover */
+    /* Inputs dentro del Popover */
     [data-baseweb="popover"] input {
         background-color: #f8fafc !important;
         color: #0f172a !important;
@@ -78,15 +85,7 @@ st.markdown(
         border: 1px solid #cbd5e1 !important;
     }
 
-    /* Botones primarios dentro del Popover */
-    [data-baseweb="popover"] button[kind="primary"] * {
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-    }
-
-    /* -------------------------------------------------- */
-
-    /* Inputs de la pantalla principal azul */
+    /* INPUTS Y SELECTORES DE LA PANTALLA PRINCIPAL */
     .stApp input, .stApp select, .stApp [data-baseweb="select"] > div {
         background-color: #1e293b !important;
         color: #ffffff !important;
@@ -94,7 +93,7 @@ st.markdown(
         border: 1px solid #475569 !important;
     }
 
-    /* Botones secundarios (Blancos en pantalla azul) */
+    /* BOTONES SECUNDARIOS / BLANCOS */
     .stApp button:not([kind="primary"]) {
         background-color: #ffffff !important;
         border: 1px solid #cbd5e1 !important;
@@ -105,7 +104,7 @@ st.markdown(
         font-weight: bold !important;
     }
 
-    /* Títulos principales */
+    /* TÍTULOS Y ENCABEZADOS */
     h1 {
         background: linear-gradient(90deg, #10b981, #38bdf8);
         -webkit-background-clip: text !important;
@@ -113,20 +112,13 @@ st.markdown(
         font-weight: 800 !important;
     }
 
-    /* Subtítulos H2 y H3 */
     h2, h3, .stApp h2, .stApp h3 {
         color: #38bdf8 !important;
         -webkit-text-fill-color: #38bdf8 !important;
         font-weight: 700 !important;
     }
 
-    /* Títulos dentro de Popovers */
-    [data-baseweb="popover"] h1, [data-baseweb="popover"] h2, [data-baseweb="popover"] h3, [data-baseweb="popover"] h4 {
-        color: #0f172a !important;
-        -webkit-text-fill-color: #0f172a !important;
-    }
-
-    /* Pestañas (Tabs) */
+    /* PESTAÑAS (TABS) */
     [data-baseweb="tab-list"] {
         background-color: #1e293b !important;
         border-radius: 8px !important;
@@ -146,25 +138,18 @@ st.markdown(
         -webkit-text-fill-color: #38bdf8 !important;
     }
 
-    /* Métricas KPI */
-    [data-testid="stMetricValue"] div {
-        color: #10b981 !important;
-        -webkit-text-fill-color: #10b981 !important;
-        font-weight: 800 !important;
-    }
-    [data-testid="stMetricLabel"] p {
-        color: #f1f5f9 !important;
-        -webkit-text-fill-color: #f1f5f9 !important;
-        font-weight: 700 !important;
-    }
-
-    /* Botones primarios globales */
+    /* BOTONES PRIMARIOS */
     button[kind="primary"] {
         background: linear-gradient(90deg, #059669 0%, #10b981 100%) !important;
         border: none !important;
     }
+    button[kind="primary"] * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        font-weight: bold !important;
+    }
 
-    /* Badges de estado */
+    /* BADGES */
     .badge-preparado {
         background-color: #065f46 !important;
         color: #34d399 !important;
@@ -1096,7 +1081,7 @@ def vista_admin():
                 with st.container(border=True):
                     c1, c2, c3, c4 = st.columns([2, 2, 2, 1])
                     c1.write(f"**{u['nombre']}**")
-                    c2.write(f"`{u['usuario']}`")
+                    c2.write(f"<b>{u['usuario']}</b>", unsafe_allow_html=True)
                     c3.write(u["rol"].upper())
                     if c4.button("🗑️", key=f"del_user_{u['id']}"):
                         with get_connection() as conn_del:
