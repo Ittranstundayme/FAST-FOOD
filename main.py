@@ -54,10 +54,6 @@ st.markdown(
         font-weight: 500;
     }
 
-    /* -------------------------------------------------- */
-    /* CORRECCIÓN PARA CUADROS BLANCOS, DESPLEGABLES Y POPOVERS */
-    /* -------------------------------------------------- */
-    
     /* Opciones del Selectbox / Desplegable (Fondo blanco -> Letras oscuras) */
     [data-baseweb="menu"], [data-baseweb="popover"], div[role="listbox"], ul[role="listbox"] {
         background-color: #ffffff !important;
@@ -95,8 +91,6 @@ st.markdown(
         -webkit-text-fill-color: #0f172a !important;
         font-weight: bold !important;
     }
-
-    /* -------------------------------------------------- */
 
     /* Título H1 principal */
     h1 {
@@ -495,6 +489,28 @@ def vista_mesero():
                             st.markdown(f"#### Modificar Orden #{p['id']}")
                             nuevo_cliente = st.text_input("Cliente/Mesa", value=p["cliente"], key=f"edit_cli_{p['id']}")
                             
+                            st.markdown("---")
+                            st.markdown("**Eliminar productos existentes:**")
+                            # --- ELIMINAR ÍTEMS DE LA ORDEN ---
+                            for item_idx, it in enumerate(items):
+                                col_i1, col_i2 = st.columns([3, 1])
+                                col_i1.write(f"• {it['nombre']} (${it['precio']:.2f})")
+                                if col_i2.button("❌", key=f"del_item_{p['id']}_{item_idx}"):
+                                    items.pop(item_idx)
+                                    nuevo_total_rem = sum(it_rem["precio"] for it_rem in items)
+                                    with get_connection() as conn_rem:
+                                        c_rem = conn_rem.cursor()
+                                        c_rem.execute(
+                                            "UPDATE pedidos SET items=?, total=? WHERE id=?",
+                                            (json.dumps(items), nuevo_total_rem, p["id"])
+                                        )
+                                        conn_rem.commit()
+                                    st.success("Producto eliminado del pedido")
+                                    st.rerun()
+
+                            st.markdown("---")
+                            st.markdown("**Añadir nuevo producto:**")
+                            # --- AÑADIR ÍTEMS A LA ORDEN ---
                             with get_connection() as conn_prod:
                                 c_prod = conn_prod.cursor()
                                 c_prod.execute("SELECT nombre, precio FROM productos")
@@ -512,7 +528,7 @@ def vista_mesero():
                                     precio_p = float(prod_select.split(" - $")[1])
                                     
                                     items.append({"nombre": nombre_p, "precio": precio_p})
-                                    nuevo_total = p["total"] + precio_p
+                                    nuevo_total = sum(it_add["precio"] for it_add in items)
                                     
                                     with get_connection() as conn_up:
                                         c_up = conn_up.cursor()
@@ -884,13 +900,34 @@ def vista_multifuncion():
                         
                         with st.popover("✏️ Modificar", use_container_width=True):
                             n_cli = st.text_input("Cambiar Mesa:", value=pa["cliente"], key=f"n_cli_{pa['id']}")
+                            
+                            st.markdown("---")
+                            st.markdown("**Eliminar producto:**")
+                            for m_idx, m_item in enumerate(items_m):
+                                col_mf1, col_mf2 = st.columns([3, 1])
+                                col_mf1.write(f"• {m_item['nombre']} (${m_item['precio']:.2f})")
+                                if col_mf2.button("❌", key=f"del_m_it_{pa['id']}_{m_idx}"):
+                                    items_m.pop(m_idx)
+                                    nuevo_tot_m = sum(x["precio"] for x in items_m)
+                                    with get_connection() as conn_rem_m:
+                                        cd_m = conn_rem_m.cursor()
+                                        cd_m.execute(
+                                            "UPDATE pedidos SET items=?, total=? WHERE id=?",
+                                            (json.dumps(items_m), nuevo_tot_m, pa["id"])
+                                        )
+                                        conn_rem_m.commit()
+                                    st.success("Eliminado")
+                                    st.rerun()
+
+                            st.markdown("---")
+                            st.markdown("**Añadir producto:**")
                             if prods:
                                 p_add = st.selectbox("Añadir producto:", [f"{pr['nombre']} - ${pr['precio']:.2f}" for pr in prods], key=f"p_add_{pa['id']}")
                                 if st.button("➕ Añadir", key=f"btn_add_mult_{pa['id']}"):
                                     n_p = p_add.split(" - $")[0]
                                     p_p = float(p_add.split(" - $")[1])
                                     items_m.append({"nombre": n_p, "precio": p_p})
-                                    n_tot = pa["total"] + p_p
+                                    n_tot = sum(x["precio"] for x in items_m)
                                     with get_connection() as conn_u:
                                         cu = conn_u.cursor()
                                         cu.execute("UPDATE pedidos SET cliente=?, items=?, total=? WHERE id=?", (n_cli, json.dumps(items_m), n_tot, pa["id"]))
