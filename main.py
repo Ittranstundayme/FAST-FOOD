@@ -22,75 +22,92 @@ if not os.path.exists(IMG_DIR):
     os.makedirs(IMG_DIR)
 
 # ---------------------------------------------------------
-# INYECCIÓN DE ESTILOS CSS (COLORES Y FONDOS ENERGICOS)
+# INYECCIÓN DE ESTILOS CSS (TEMA CLARO - ALTO CONTRASTE)
 # ---------------------------------------------------------
 st.markdown(
     """
     <style>
-    /* Fondo principal con degradado oscuro elegante */
+    /* Fondo principal claro y limpio */
     .stApp {
-        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        background-color: #f1f5f9 !important;
+        color: #0f172a !important;
     }
     
-    /* Barra lateral estilizada */
+    /* Barra lateral en tono claro sutil */
     [data-testid="stSidebar"] {
-        background-color: #0d1117 !important;
-        border-right: 1px solid #1f2937;
+        background-color: #ffffff !important;
+        border-right: 2px solid #e2e8f0 !important;
     }
     
-    /* Tarjetas/Contenedores personalizados con bordes vivos */
+    /* Tarjetas y Contenedores blancos con sombra sutil y borde definido */
     [data-testid="stVerticalBlockBorderWrapper"] {
-        background: rgba(30, 41, 59, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
         border-radius: 12px !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-        backdrop-filter: blur(8px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05) !important;
     }
 
-    /* Títulos principales */
+    /* Títulos principales en negro limpio */
     h1 {
-        background: linear-gradient(90deg, #10b981, #38bdf8);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #0f172a !important;
+        font-weight: 800 !important;
+        -webkit-text-fill-color: initial !important;
+    }
+
+    /* Subtítulos en azul oscuro intenso */
+    h2, h3 {
+        color: #1e3a8a !important;
+        font-weight: 700 !important;
+    }
+
+    /* Párrafos, textos y markdown en negro puro */
+    p, span, label, div, .stMarkdown {
+        color: #0f172a !important;
+    }
+
+    /* Inputs y Selectores con texto negro visible */
+    input, select, textarea, [data-baseweb="select"] {
+        color: #0f172a !important;
+        background-color: #f8fafc !important;
+    }
+
+    /* Métricas / KPIs */
+    [data-testid="stMetricValue"] {
+        color: #059669 !important;
         font-weight: 800 !important;
     }
-
-    /* Subtítulos */
-    h2, h3 {
-        color: #38bdf8 !important;
+    [data-testid="stMetricLabel"] {
+        color: #334155 !important;
+        font-weight: 600 !important;
     }
 
-    /* Métricas / KPIs coloridas */
-    [data-testid="stMetricValue"] {
-        color: #10b981 !important;
-        font-weight: bold;
-    }
-
-    /* Botones primarios */
+    /* Botones primarios (Verde vibrante) */
     button[kind="primary"] {
-        background: linear-gradient(90deg, #059669 0%, #10b981 100%) !important;
+        background: #10b981 !important;
         border: none !important;
-        color: white !important;
+        color: #ffffff !important;
         font-weight: bold !important;
-        box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+        box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3) !important;
     }
 
-    /* Custom Badges para Estados */
+    /* Custom Badges para Estados (Textos oscuros y legibles) */
     .badge-preparado {
-        background-color: #065f46;
-        color: #34d399;
+        background-color: #d1fae5;
+        color: #065f46;
         padding: 4px 12px;
         border-radius: 20px;
         font-weight: bold;
-        font-size: 12px;
+        font-size: 13px;
+        border: 1px solid #a7f3d0;
     }
     .badge-pendiente {
-        background-color: #854d0e;
-        color: #fef08a;
+        background-color: #fef9c3;
+        color: #854d0e;
         padding: 4px 12px;
         border-radius: 20px;
         font-weight: bold;
-        font-size: 12px;
+        font-size: 13px;
+        border: 1px solid #fef08a;
     }
     </style>
 """,
@@ -200,11 +217,11 @@ if "carrito" not in st.session_state:
 # ---------------------------------------------------------
 def login():
     st.markdown(
-        "<h1 style='text-align: center; margin-top: 50px;'>⚡ FastFood POS Pro</h1>",
+        "<h1 style='text-align: center; margin-top: 40px; color: #0f172a;'>⚡ FastFood POS Pro</h1>",
         unsafe_allow_html=True,
     )
     st.markdown(
-        "<p style='text-align: center; color: #94a3b8;'>Acceso al Control Operativo</p>",
+        "<p style='text-align: center; color: #475569; font-weight: 600;'>Acceso al Control Operativo</p>",
         unsafe_allow_html=True,
     )
 
@@ -256,10 +273,10 @@ if not st.session_state.authenticated:
 st.sidebar.markdown("# ⚡ FastFood POS")
 st.sidebar.markdown(
     f"""
-    <div style="background-color: #1e293b; padding: 15px; border-radius: 10px; border-left: 4px solid #10b981; margin-bottom: 20px;">
-        <span style="color: #94a3b8; font-size: 12px;">USUARIO ACTIVO</span><br>
-        <strong style="color: #f8fafc; font-size: 16px;">👤 {st.session_state.usuario_actual}</strong><br>
-        <span style="background-color: #065f46; color: #34d399; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: bold; text-transform: uppercase;">{st.session_state.rol_actual}</span>
+    <div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #cbd5e1; border-left: 5px solid #10b981; margin-bottom: 20px;">
+        <span style="color: #475569; font-size: 12px; font-weight: bold;">USUARIO ACTIVO</span><br>
+        <strong style="color: #0f172a; font-size: 16px;">👤 {st.session_state.usuario_actual}</strong><br>
+        <span style="background-color: #d1fae5; color: #065f46; font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: bold; text-transform: uppercase;">{st.session_state.rol_actual}</span>
     </div>
 """,
     unsafe_allow_html=True,
@@ -300,9 +317,12 @@ def vista_mesero():
                             unsafe_allow_html=True,
                         )
 
-                    st.markdown(f"**{prod['nombre']}**")
                     st.markdown(
-                        f"<h3 style='color: #10b981; margin: 0;'>${prod['precio']:.2f}</h3>",
+                        f"<p style='color: #0f172a; font-weight: bold; font-size: 15px; margin:0;'>{prod['nombre']}</p>",
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown(
+                        f"<h3 style='color: #059669; margin: 0;'>${prod['precio']:.2f}</h3>",
                         unsafe_allow_html=True,
                     )
 
@@ -335,7 +355,7 @@ def vista_mesero():
             else:
                 for i, item in enumerate(st.session_state.carrito):
                     c1, c2, c3 = st.columns([3, 2, 1])
-                    c1.write(item["nombre"])
+                    c1.write(f"**{item['nombre']}**")
                     c2.write(f"${item['precio']:.2f}")
                     if c3.button("❌", key=f"del_cart_{i}"):
                         st.session_state.carrito.pop(i)
@@ -344,7 +364,7 @@ def vista_mesero():
 
             st.markdown("---")
             st.markdown(
-                f"<div style='text-align: right;'><span style='color: #94a3b8;'>Total a Pagar:</span><h2 style='color: #10b981; margin:0;'>${total:.2f}</h2></div>",
+                f"<div style='text-align: right;'><span style='color: #475569; font-weight: bold;'>Total a Pagar:</span><h2 style='color: #059669; margin:0;'>${total:.2f}</h2></div>",
                 unsafe_allow_html=True,
             )
             st.write("")
@@ -403,10 +423,13 @@ def vista_cocina():
         with cols[idx % 3]:
             with st.container(border=True):
                 st.markdown(
-                    f"<h3 style='color: #f97316; margin:0;'>Orden #{p['id']}</h3>",
+                    f"<h3 style='color: #ea580c; margin:0;'>Orden #{p['id']}</h3>",
                     unsafe_allow_html=True,
                 )
-                st.markdown(f"**Cliente:** {p['cliente']}")
+                st.markdown(
+                    f"<p style='color: #0f172a; font-weight: bold; margin:0;'>Cliente: {p['cliente']}</p>",
+                    unsafe_allow_html=True,
+                )
                 st.caption(
                     f"Atendido por: {p['mesero']} | 🕒 {p['fecha_hora'][11:16] if p['fecha_hora'] else ''}"
                 )
@@ -415,7 +438,7 @@ def vista_cocina():
                 items = json.loads(p["items"])
                 for it in items:
                     st.markdown(
-                        f"<span style='color: #f8fafc;'>• {it['nombre']}</span>",
+                        f"<p style='color: #0f172a; font-weight: 600; margin:2px 0;'>• {it['nombre']}</p>",
                         unsafe_allow_html=True,
                     )
 
@@ -454,7 +477,7 @@ def vista_caja():
         col_caja1, col_caja2 = st.columns([3, 1.2])
         if not caja_abierta:
             col_caja1.markdown(
-                "<h3 style='color: #ef4444; margin:0;'>🔴 CAJA CERRADA</h3>",
+                "<h3 style='color: #dc2626; margin:0;'>🔴 CAJA CERRADA</h3>",
                 unsafe_allow_html=True,
             )
             with col_caja2.popover("🔓 Abrir Caja"):
@@ -478,7 +501,7 @@ def vista_caja():
                     st.rerun()
         else:
             col_caja1.markdown(
-                f"<h3 style='color: #10b981; margin:0;'>🟢 CAJA ABIERTA <small style='font-size:14px; color:#94a3b8;'>(Base: ${caja_abierta['monto_apertura']:.2f})</small></h3>",
+                f"<h3 style='color: #059669; margin:0;'>🟢 CAJA ABIERTA <small style='font-size:14px; color:#475569;'>(Base: ${caja_abierta['monto_apertura']:.2f})</small></h3>",
                 unsafe_allow_html=True,
             )
             if col_caja2.button("🔒 CERRAR CAJA (ARQUEO)"):
@@ -522,7 +545,7 @@ def vista_caja():
         with cols[idx % 3]:
             with st.container(border=True):
                 st.markdown(
-                    f"### Orden #{p['id']} - <span style='color:#38bdf8;'>{p['cliente']}</span>",
+                    f"### Orden #{p['id']} - <span style='color:#0284c7;'>{p['cliente']}</span>",
                     unsafe_allow_html=True,
                 )
                 st.caption(f"Mesero: {p['mesero']}")
@@ -539,7 +562,7 @@ def vista_caja():
                     )
 
                 st.markdown(
-                    f"<h2 style='color:#10b981; margin-top:10px;'>${p['total']:.2f}</h2>",
+                    f"<h2 style='color:#059669; margin-top:10px;'>${p['total']:.2f}</h2>",
                     unsafe_allow_html=True,
                 )
 
