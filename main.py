@@ -39,7 +39,7 @@ st.markdown(
         border-right: 1px solid #1f2937 !important;
     }
     
-    /* Tarjetas y Contenedores translúcidos con borde brillante */
+    /* Tarjetas y Contenedores translúcidos */
     [data-testid="stVerticalBlockBorderWrapper"], div[data-testid="stForm"] {
         background: rgba(30, 41, 59, 0.85) !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -171,6 +171,7 @@ def init_db():
                 ("mesero1", "1234", "Carlos Gómez", "mesero"),
                 ("cocina1", "1234", "Chef Mario", "cocina"),
                 ("caja1", "1234", "Ana Cajera", "caja"),
+                ("multi1", "1234", "Cajera & Mesera", "multifuncion"),
                 ("admin", "admin", "Administrador", "admin"),
             ]
             cursor.executemany(
@@ -305,6 +306,7 @@ st.sidebar.markdown(
 if st.sidebar.button("🚪 Cerrar Sesión", use_container_width=True):
     logout()
 
+
 # ---------------------------------------------------------
 # VISTA: MESERO
 # ---------------------------------------------------------
@@ -313,7 +315,6 @@ def vista_mesero():
 
     tab_nuevo, tab_editar = st.tabs(["📝 Nuevo Pedido", "✏️ Pedidos Activos (Editar / Borrar)"])
 
-    # ------------------ TAB 1: NUEVO PEDIDO ------------------
     with tab_nuevo:
         col_menu, col_carrito = st.columns([2.2, 1.2])
 
@@ -420,7 +421,6 @@ def vista_mesero():
                         st.success("¡Orden enviada!")
                         st.rerun()
 
-    # ------------------ TAB 2: EDITAR Y BORRAR PEDIDOS ACTIVOS ------------------
     with tab_editar:
         st.subheader("🛠️ Administrar Pedidos en Curso")
         
@@ -456,12 +456,10 @@ def vista_mesero():
 
                     with col_p3:
                         st.write("")
-                        # Popover para Editar el Pedido
                         with st.popover("✏️ Editar Pedido", use_container_width=True):
                             st.markdown(f"#### Modificar Orden #{p['id']}")
                             nuevo_cliente = st.text_input("Cliente/Mesa", value=p["cliente"], key=f"edit_cli_{p['id']}")
                             
-                            # Obtener productos del menú para añadir
                             with get_connection() as conn_prod:
                                 c_prod = conn_prod.cursor()
                                 c_prod.execute("SELECT nombre, precio FROM productos")
@@ -491,7 +489,6 @@ def vista_mesero():
                                     st.success(f"¡Añadido {nombre_p}!")
                                     st.rerun()
 
-                            # Botón para actualizar el nombre de la mesa/cliente
                             if st.button("💾 Guardar Cambios Nombre", key=f"save_name_{p['id']}"):
                                 with get_connection() as conn_up_name:
                                     c_un = conn_up_name.cursor()
@@ -503,7 +500,6 @@ def vista_mesero():
                                 st.success("¡Mesa/Cliente actualizada!")
                                 st.rerun()
 
-                        # Botón para Borrar / Anular Pedido
                         if st.button("🗑️ Anular / Eliminar", key=f"del_ped_{p['id']}", use_container_width=True):
                             with get_connection() as conn_del:
                                 c_del = conn_del.cursor()
@@ -703,6 +699,182 @@ def vista_caja():
 
 
 # ---------------------------------------------------------
+# VISTA: MULTIFUNCIÓN (CAJERO & MESERO EN UNA MISMA PANTALLA)
+# ---------------------------------------------------------
+def vista_multifuncion():
+    st.markdown("<h1>⚡ Módulo Integrado (Caja & Mesero)</h1>", unsafe_allow_html=True)
+
+    # Arriba: Control de Apertura / Cierre de Caja
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, monto_apertura FROM cajas WHERE cajero=? AND estado='abierta'",
+            (st.session_state.usuario_actual,),
+        )
+        caja_abierta = cursor.fetchone()
+
+    with st.container(border=True):
+        col_c1, col_c2 = st.columns([3, 1])
+        if not caja_abierta:
+            col_c1.markdown("<h4 style='color: #ef4444; margin:0;'>🔴 CAJA CERRADA</h4>", unsafe_allow_html=True)
+            with col_c2.popover("🔓 Abrir Caja"):
+                m_ap = st.number_input("Monto Inicial ($):", min_value=0.0, step=5.0)
+                if st.button("Aceptar"):
+                    fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    with get_connection() as conn_i:
+                        c_i = conn_i.cursor()
+                        c_i.execute(
+                            "INSERT INTO cajas (cajero, monto_apertura, fecha_apertura, estado) VALUES (?, ?, ?, 'abierta')",
+                            (st.session_state.usuario_actual, m_ap, fecha),
+                        )
+                        conn_i.commit()
+                    st.success("Caja Abierta")
+                    st.rerun()
+        else:
+            col_c1.markdown(f"<h4 style='color: #10b981; margin:0;'>🟢 CAJA ABIERTA (Base: ${caja_abierta['monto_apertura']:.2f})</h4>", unsafe_allow_html=True)
+            if col_c2.button("🔒 Cerrar Caja"):
+                with get_connection() as conn_tot:
+                    c_tot = conn_tot.cursor()
+                    c_tot.execute("SELECT SUM(total) FROM pedidos WHERE estado='cobrado'")
+                    ventas = c_tot.fetchone()[0] or 0.0
+                base = caja_abierta["monto_apertura"]
+                esperado = base + ventas
+                fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                with get_connection() as conn_close:
+                    c_close = conn_close.cursor()
+                    c_close.execute(
+                        "UPDATE cajas SET monto_cierre=?, ventas_efectivo=?, fecha_cierre=?, estado='cerrada' WHERE id=?",
+                        (esperado, ventas, fecha, caja_abierta["id"]),
+                    )
+                    conn_close.commit()
+                st.success(f"Caja Cerrada. Arqueo: ${esperado:.2f}")
+                st.rerun()
+
+    # Layout de 3 columnas para tener TODO en la misma pantalla
+    col_toma, col_cobros, col_edicion = st.columns([1.2, 1.2, 1.2])
+
+    # --- COLUMNA 1: TOMAR NUEVO PEDIDO ---
+    with col_toma:
+        with st.container(border=True):
+            st.subheader("🛒 Nuevo Pedido")
+            cli_multi = st.text_input("Mesa / Cliente:", key="cli_multi")
+            
+            with get_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT id, nombre, precio FROM productos")
+                prods = c.fetchall()
+
+            if prods:
+                p_selected = st.selectbox("Selecciona Producto:", [f"{p['nombre']} - ${p['precio']:.2f}" for p in prods])
+                if st.button("➕ Agregar al Carrito", use_container_width=True):
+                    nom = p_selected.split(" - $")[0]
+                    prec = float(p_selected.split(" - $")[1])
+                    st.session_state.carrito.append({"nombre": nom, "precio": prec})
+                    st.rerun()
+
+            st.markdown("---")
+            total_c = 0.0
+            for idx, item in enumerate(st.session_state.carrito):
+                cx, cy = st.columns([3, 1])
+                cx.write(f"• {item['nombre']} (${item['precio']:.2f})")
+                if cy.button("❌", key=f"del_m_{idx}"):
+                    st.session_state.carrito.pop(idx)
+                    st.rerun()
+                total_c += item["precio"]
+
+            st.markdown(f"### Total: `${total_c:.2f}`")
+
+            if st.button("🚀 ENVIAR ORDEN", type="primary", use_container_width=True):
+                if not cli_multi.strip() or not st.session_state.carrito:
+                    st.warning("Completa la mesa y el carrito.")
+                else:
+                    fecha_act = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    with get_connection() as conn:
+                        c = conn.cursor()
+                        c.execute(
+                            "INSERT INTO pedidos (cliente, items, total, mesero, fecha_hora) VALUES (?, ?, ?, ?, ?)",
+                            (cli_multi, json.dumps(st.session_state.carrito), total_c, st.session_state.usuario_actual, fecha_act),
+                        )
+                        conn.commit()
+                    st.session_state.carrito = []
+                    st.success("¡Orden Enviada!")
+                    st.rerun()
+
+    # --- COLUMNA 2: PANTALLA DE COBROS ---
+    with col_cobros:
+        with st.container(border=True):
+            st.subheader("💵 Cobrar Pedidos")
+            with get_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT id, cliente, total, estado FROM pedidos WHERE estado != 'cobrado' AND estado != 'anulado' ORDER BY id DESC")
+                peds_cobro = c.fetchall()
+
+            if not peds_cobro:
+                st.info("Sin cuentas pendientes.")
+            else:
+                for pc in peds_cobro:
+                    with st.container(border=True):
+                        st.markdown(f"**Orden #{pc['id']} - {pc['cliente']}**")
+                        if pc['estado'] == 'preparado':
+                            st.markdown("<span class='badge-preparado'>¡LISTO!</span>", unsafe_allow_html=True)
+                        else:
+                            st.markdown("<span class='badge-pendiente'>En Cocina</span>", unsafe_allow_html=True)
+                        
+                        st.markdown(f"<h3 style='color:#10b981; margin:0;'>${pc['total']:.2f}</h3>", unsafe_allow_html=True)
+                        pag = st.number_input("Paga ($):", value=float(pc['total']), min_value=float(pc['total']), key=f"pm_{pc['id']}")
+                        
+                        if st.button("💵 COBRAR", key=f"cob_m_{pc['id']}", use_container_width=True, type="primary"):
+                            cambio = pag - pc['total']
+                            with get_connection() as conn_up:
+                                cu = conn_up.cursor()
+                                cu.execute("UPDATE pedidos SET estado='cobrado' WHERE id=?", (pc['id'],))
+                                conn_up.commit()
+                            st.success(f"Cobrado. Cambio: ${cambio:.2f}")
+                            st.rerun()
+
+    # --- COLUMNA 3: EDITAR O BORRAR PEDIDOS ACTIVOS ---
+    with col_edicion:
+        with st.container(border=True):
+            st.subheader("🛠️ Gestor de Mesas")
+            with get_connection() as conn:
+                c = conn.cursor()
+                c.execute("SELECT id, cliente, items, total FROM pedidos WHERE estado != 'cobrado' AND estado != 'anulado' ORDER BY id DESC")
+                peds_act = c.fetchall()
+
+            if not peds_act:
+                st.info("Sin pedidos activos.")
+            else:
+                for pa in peds_act:
+                    with st.container(border=True):
+                        st.markdown(f"**#{pa['id']} - {pa['cliente']}** (${pa['total']:.2f})")
+                        items_m = json.loads(pa["items"])
+                        
+                        with st.popover("✏️ Modificar", use_container_width=True):
+                            n_cli = st.text_input("Cambiar Mesa:", value=pa["cliente"], key=f"n_cli_{pa['id']}")
+                            if prods:
+                                p_add = st.selectbox("Añadir producto:", [f"{pr['nombre']} - ${pr['precio']:.2f}" for pr in prods], key=f"p_add_{pa['id']}")
+                                if st.button("➕ Añadir", key=f"btn_add_mult_{pa['id']}"):
+                                    n_p = p_add.split(" - $")[0]
+                                    p_p = float(p_add.split(" - $")[1])
+                                    items_m.append({"nombre": n_p, "precio": p_p})
+                                    n_tot = pa["total"] + p_p
+                                    with get_connection() as conn_u:
+                                        cu = conn_u.cursor()
+                                        cu.execute("UPDATE pedidos SET cliente=?, items=?, total=? WHERE id=?", (n_cli, json.dumps(items_m), n_tot, pa["id"]))
+                                        conn_u.commit()
+                                    st.success("Actualizado")
+                                    st.rerun()
+
+                        if st.button("🗑️ Anular", key=f"del_m_act_{pa['id']}", use_container_width=True):
+                            with get_connection() as conn_d:
+                                cd = conn_d.cursor()
+                                cd.execute("UPDATE pedidos SET estado='anulado' WHERE id=?", (pa["id"],))
+                                conn_d.commit()
+                            st.warning("Anulado")
+                            st.rerun()
+
+
+# ---------------------------------------------------------
 # VISTA: ADMINISTRADOR
 # ---------------------------------------------------------
 def vista_admin():
@@ -809,7 +981,7 @@ def vista_admin():
                 u_user = st.text_input("Nombre de Usuario")
                 u_clave = st.text_input("Contraseña", type="password")
                 u_rol = st.selectbox(
-                    "Rol / Cargo", ["mesero", "cocina", "caja", "admin"]
+                    "Rol / Cargo", ["mesero", "cocina", "caja", "multifuncion", "admin"]
                 )
 
                 if st.button("Guardar Usuario", type="primary"):
@@ -934,5 +1106,7 @@ elif rol == "cocina":
     vista_cocina()
 elif rol == "caja":
     vista_caja()
+elif rol == "multifuncion":
+    vista_multifuncion()
 elif rol == "admin":
     vista_admin()
