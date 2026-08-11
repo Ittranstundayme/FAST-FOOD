@@ -22,7 +22,7 @@ if not os.path.exists(IMG_DIR):
     os.makedirs(IMG_DIR)
 
 # ---------------------------------------------------------
-# INYECCIÓN DE ESTILOS CSS (TEMA AZUL OSCURO - LETRAS VISIBLES)
+# INYECCIÓN DE ESTILOS CSS (POPOVERS Y TEXTOS ARREGLADOS)
 # ---------------------------------------------------------
 st.markdown(
     """
@@ -33,13 +33,13 @@ st.markdown(
         color: #ffffff !important;
     }
     
-    /* Barra lateral estilizada */
+    /* Barra lateral */
     [data-testid="stSidebar"], [data-testid="stSidebar"] > div {
         background-color: #0d1117 !important;
         border-right: 1px solid #1f2937 !important;
     }
     
-    /* Tarjetas y Contenedores translúcidos */
+    /* Tarjetas principales */
     [data-testid="stVerticalBlockBorderWrapper"], div[data-testid="stForm"] {
         background: rgba(30, 41, 59, 0.85) !important;
         border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -47,52 +47,65 @@ st.markdown(
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
     }
 
-    /* TEXTOS GLOBALES DE PANTALLA EN BLANCO */
-    p, span, label, div, li, td, th, [data-testid="stMarkdownContainer"] p {
+    /* TEXTO BLANCO ÚNICAMENTE EN LA ESTRUCTURA PRINCIPAL DE LA APP */
+    .stApp p, .stApp span, .stApp label, .stApp div:not([data-baseweb]), .stApp li, .stApp td, .stApp th {
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
-        font-weight: 500;
     }
 
-    /* Opciones del Selectbox / Desplegable (Fondo blanco -> Letras oscuras) */
-    [data-baseweb="menu"], [data-baseweb="popover"], div[role="listbox"], ul[role="listbox"] {
-        background-color: #ffffff !important;
-    }
+    /* -------------------------------------------------- */
+    /* FORZAR TEXTO NEGRO DENTRO DE TODO LO QUE SEA BLANCO */
+    /* -------------------------------------------------- */
     
-    [data-baseweb="menu"] * , [data-baseweb="popover"] * , div[role="listbox"] * , ul[role="listbox"] * {
+    /* Popover (Recuadro blanco de editar), Menús y Listbox */
+    [data-baseweb="popover"], [data-baseweb="menu"], div[role="listbox"], ul[role="listbox"], div[data-baseweb="tooltip"] {
+        background-color: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+    }
+
+    /* TODO el texto dentro de Popovers y Menús desplegables es NEGRO */
+    [data-baseweb="popover"] *, [data-baseweb="menu"] *, div[role="listbox"] *, ul[role="listbox"] * {
         color: #0f172a !important;
         -webkit-text-fill-color: #0f172a !important;
         font-weight: 600 !important;
     }
 
-    /* Hover de opciones desplegables */
-    [data-baseweb="option"] {
-        background-color: #ffffff !important;
-    }
-    [data-baseweb="option"]:hover, [aria-selected="true"] {
-        background-color: #e2e8f0 !important;
+    /* Inputs de texto dentro del Popover */
+    [data-baseweb="popover"] input {
+        background-color: #f8fafc !important;
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
     }
 
-    /* Inputs de texto y selectores principales */
-    input, select, [data-baseweb="select"] > div {
+    /* Botones primarios dentro del Popover */
+    [data-baseweb="popover"] button[kind="primary"] * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    /* -------------------------------------------------- */
+
+    /* Inputs de la pantalla principal azul */
+    .stApp input, .stApp select, .stApp [data-baseweb="select"] > div {
         background-color: #1e293b !important;
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
         border: 1px solid #475569 !important;
     }
 
-    /* Botones secundarios / blancos (Anular, Cerrar Sesión) */
-    button:not([kind="primary"]) {
+    /* Botones secundarios (Blancos en pantalla azul) */
+    .stApp button:not([kind="primary"]) {
         background-color: #ffffff !important;
         border: 1px solid #cbd5e1 !important;
     }
-    button:not([kind="primary"]) * {
+    .stApp button:not([kind="primary"]) * {
         color: #0f172a !important;
         -webkit-text-fill-color: #0f172a !important;
         font-weight: bold !important;
     }
 
-    /* Título H1 principal */
+    /* Títulos principales */
     h1 {
         background: linear-gradient(90deg, #10b981, #38bdf8);
         -webkit-background-clip: text !important;
@@ -100,11 +113,17 @@ st.markdown(
         font-weight: 800 !important;
     }
 
-    /* Subtítulos H2 y H3 en cian brillante */
-    h2, h3 {
+    /* Subtítulos H2 y H3 */
+    h2, h3, .stApp h2, .stApp h3 {
         color: #38bdf8 !important;
         -webkit-text-fill-color: #38bdf8 !important;
         font-weight: 700 !important;
+    }
+
+    /* Títulos dentro de Popovers */
+    [data-baseweb="popover"] h1, [data-baseweb="popover"] h2, [data-baseweb="popover"] h3, [data-baseweb="popover"] h4 {
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
     }
 
     /* Pestañas (Tabs) */
@@ -127,7 +146,7 @@ st.markdown(
         -webkit-text-fill-color: #38bdf8 !important;
     }
 
-    /* Métricas e Indicadores KPI */
+    /* Métricas KPI */
     [data-testid="stMetricValue"] div {
         color: #10b981 !important;
         -webkit-text-fill-color: #10b981 !important;
@@ -139,15 +158,10 @@ st.markdown(
         font-weight: 700 !important;
     }
 
-    /* Botones primarios (Verde Esmeralda) */
+    /* Botones primarios globales */
     button[kind="primary"] {
         background: linear-gradient(90deg, #059669 0%, #10b981 100%) !important;
         border: none !important;
-    }
-    button[kind="primary"] * {
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-        font-weight: bold !important;
     }
 
     /* Badges de estado */
@@ -490,8 +504,7 @@ def vista_mesero():
                             nuevo_cliente = st.text_input("Cliente/Mesa", value=p["cliente"], key=f"edit_cli_{p['id']}")
                             
                             st.markdown("---")
-                            st.markdown("**Eliminar productos existentes:**")
-                            # --- ELIMINAR ÍTEMS DE LA ORDEN ---
+                            st.markdown("**Eliminar productos:**")
                             for item_idx, it in enumerate(items):
                                 col_i1, col_i2 = st.columns([3, 1])
                                 col_i1.write(f"• {it['nombre']} (${it['precio']:.2f})")
@@ -505,12 +518,11 @@ def vista_mesero():
                                             (json.dumps(items), nuevo_total_rem, p["id"])
                                         )
                                         conn_rem.commit()
-                                    st.success("Producto eliminado del pedido")
+                                    st.success("Producto eliminado")
                                     st.rerun()
 
                             st.markdown("---")
                             st.markdown("**Añadir nuevo producto:**")
-                            # --- AÑADIR ÍTEMS A LA ORDEN ---
                             with get_connection() as conn_prod:
                                 c_prod = conn_prod.cursor()
                                 c_prod.execute("SELECT nombre, precio FROM productos")
