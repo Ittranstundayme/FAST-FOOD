@@ -22,92 +22,117 @@ if not os.path.exists(IMG_DIR):
     os.makedirs(IMG_DIR)
 
 # ---------------------------------------------------------
-# INYECCIÓN DE ESTILOS CSS (TEMA CLARO - ALTO CONTRASTE)
+# INYECCIÓN DE ESTILOS CSS (TEMA AZUL OSCURO - LETRAS BLANCAS)
 # ---------------------------------------------------------
 st.markdown(
     """
     <style>
-    /* Fondo principal claro y limpio */
-    .stApp {
-        background-color: #f1f5f9 !important;
-        color: #0f172a !important;
+    /* Fondo principal con degradado azul oscuro */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%) !important;
+        color: #ffffff !important;
     }
     
-    /* Barra lateral en tono claro sutil */
-    [data-testid="stSidebar"] {
-        background-color: #ffffff !important;
-        border-right: 2px solid #e2e8f0 !important;
+    /* Barra lateral estilizada */
+    [data-testid="stSidebar"], [data-testid="stSidebar"] > div {
+        background-color: #0d1117 !important;
+        border-right: 1px solid #1f2937 !important;
     }
     
-    /* Tarjetas y Contenedores blancos con sombra sutil y borde definido */
-    [data-testid="stVerticalBlockBorderWrapper"] {
-        background: #ffffff !important;
-        border: 1px solid #cbd5e1 !important;
+    /* Tarjetas y Contenedores translúcidos con borde brillante */
+    [data-testid="stVerticalBlockBorderWrapper"], div[data-testid="stForm"] {
+        background: rgba(30, 41, 59, 0.85) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
         border-radius: 12px !important;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
     }
 
-    /* Títulos principales en negro limpio */
+    /* FORZAR TEXTOS Y LETRAS A BLANCO PURO */
+    p, span, label, div, li, td, th, [data-testid="stMarkdownContainer"] p {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        font-weight: 500;
+    }
+
+    /* Título H1 principal */
     h1 {
-        color: #0f172a !important;
+        background: linear-gradient(90deg, #10b981, #38bdf8);
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
         font-weight: 800 !important;
-        -webkit-text-fill-color: initial !important;
     }
 
-    /* Subtítulos en azul oscuro intenso */
+    /* Subtítulos H2 y H3 en cian brillante */
     h2, h3 {
-        color: #1e3a8a !important;
+        color: #38bdf8 !important;
+        -webkit-text-fill-color: #38bdf8 !important;
         font-weight: 700 !important;
     }
 
-    /* Párrafos, textos y markdown en negro puro */
-    p, span, label, div, .stMarkdown {
-        color: #0f172a !important;
+    /* Pestañas (Tabs) con alto contraste */
+    [data-baseweb="tab-list"] {
+        background-color: #1e293b !important;
+        border-radius: 8px !important;
+        padding: 4px !important;
+    }
+    [data-baseweb="tab"] p {
+        color: #94a3b8 !important;
+        -webkit-text-fill-color: #94a3b8 !important;
+        font-weight: bold !important;
+    }
+    [aria-selected="true"] {
+        background-color: #334155 !important;
+        border-radius: 6px !important;
+    }
+    [aria-selected="true"] p {
+        color: #38bdf8 !important;
+        -webkit-text-fill-color: #38bdf8 !important;
     }
 
-    /* Inputs y Selectores con texto negro visible */
-    input, select, textarea, [data-baseweb="select"] {
-        color: #0f172a !important;
-        background-color: #f8fafc !important;
-    }
-
-    /* Métricas / KPIs */
-    [data-testid="stMetricValue"] {
-        color: #059669 !important;
+    /* Métricas e Indicadores KPI */
+    [data-testid="stMetricValue"] div {
+        color: #10b981 !important;
+        -webkit-text-fill-color: #10b981 !important;
         font-weight: 800 !important;
     }
-    [data-testid="stMetricLabel"] {
-        color: #334155 !important;
-        font-weight: 600 !important;
+    [data-testid="stMetricLabel"] p {
+        color: #f1f5f9 !important;
+        -webkit-text-fill-color: #f1f5f9 !important;
+        font-weight: 700 !important;
     }
 
-    /* Botones primarios (Verde vibrante) */
-    button[kind="primary"] {
-        background: #10b981 !important;
-        border: none !important;
+    /* Campos de entrada legibles */
+    input, select, [data-baseweb="select"] div {
+        background-color: #0f172a !important;
         color: #ffffff !important;
-        font-weight: bold !important;
-        box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3) !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border-color: #334155 !important;
     }
 
-    /* Custom Badges para Estados (Textos oscuros y legibles) */
+    /* Botones primarios (Verde Esmeralda) */
+    button[kind="primary"] {
+        background: linear-gradient(90deg, #059669 0%, #10b981 100%) !important;
+        border: none !important;
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.4) !important;
+    }
+    button[kind="primary"] p {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        font-weight: bold !important;
+    }
+
+    /* Badges de estado */
     .badge-preparado {
-        background-color: #d1fae5;
-        color: #065f46;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-weight: bold;
-        font-size: 13px;
-        border: 1px solid #a7f3d0;
+        background-color: #065f46 !important;
+        color: #34d399 !important;
+        -webkit-text-fill-color: #34d399 !important;
+        padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 13px;
     }
     .badge-pendiente {
-        background-color: #fef9c3;
-        color: #854d0e;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-weight: bold;
-        font-size: 13px;
-        border: 1px solid #fef08a;
+        background-color: #854d0e !important;
+        color: #fef08a !important;
+        -webkit-text-fill-color: #fef08a !important;
+        padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 13px;
     }
     </style>
 """,
@@ -217,14 +242,9 @@ if "carrito" not in st.session_state:
 # ---------------------------------------------------------
 def login():
     st.markdown(
-        "<h1 style='text-align: center; margin-top: 40px; color: #0f172a;'>⚡ FastFood POS Pro</h1>",
+        "<h1 style='text-align: center; margin-top: 50px;'>⚡ FastFood POS Pro</h1>",
         unsafe_allow_html=True,
     )
-    st.markdown(
-        "<p style='text-align: center; color: #475569; font-weight: 600;'>Acceso al Control Operativo</p>",
-        unsafe_allow_html=True,
-    )
-
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         with st.container(border=True):
@@ -273,10 +293,10 @@ if not st.session_state.authenticated:
 st.sidebar.markdown("# ⚡ FastFood POS")
 st.sidebar.markdown(
     f"""
-    <div style="background-color: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #cbd5e1; border-left: 5px solid #10b981; margin-bottom: 20px;">
-        <span style="color: #475569; font-size: 12px; font-weight: bold;">USUARIO ACTIVO</span><br>
-        <strong style="color: #0f172a; font-size: 16px;">👤 {st.session_state.usuario_actual}</strong><br>
-        <span style="background-color: #d1fae5; color: #065f46; font-size: 11px; padding: 3px 8px; border-radius: 10px; font-weight: bold; text-transform: uppercase;">{st.session_state.rol_actual}</span>
+    <div style="background-color: #1e293b; padding: 15px; border-radius: 10px; border-left: 4px solid #10b981; margin-bottom: 20px;">
+        <span style="color: #94a3b8; font-size: 12px;">USUARIO ACTIVO</span><br>
+        <strong style="color: #f8fafc; font-size: 16px;">👤 {st.session_state.usuario_actual}</strong><br>
+        <span style="background-color: #065f46; color: #34d399; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: bold; text-transform: uppercase;">{st.session_state.rol_actual}</span>
     </div>
 """,
     unsafe_allow_html=True,
@@ -290,113 +310,207 @@ if st.sidebar.button("🚪 Cerrar Sesión", use_container_width=True):
 # ---------------------------------------------------------
 def vista_mesero():
     st.markdown("<h1>🛒 Módulo de Pedidos</h1>", unsafe_allow_html=True)
-    col_menu, col_carrito = st.columns([2.2, 1.2])
 
-    with col_menu:
-        st.subheader("🍔 Catálogo de Productos")
-        with get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT id, nombre, precio, icono, imagen_path FROM productos"
-            )
-            productos = cursor.fetchall()
+    tab_nuevo, tab_editar = st.tabs(["📝 Nuevo Pedido", "✏️ Pedidos Activos (Editar / Borrar)"])
 
-        if not productos:
-            st.info("No hay productos registrados en el menú.")
+    # ------------------ TAB 1: NUEVO PEDIDO ------------------
+    with tab_nuevo:
+        col_menu, col_carrito = st.columns([2.2, 1.2])
 
-        cols = st.columns(3)
-        for idx, prod in enumerate(productos):
-            with cols[idx % 3]:
-                with st.container(border=True):
-                    img_path = prod["imagen_path"]
-                    if img_path and os.path.exists(img_path):
-                        st.image(img_path, use_container_width=True)
-                    else:
+        with col_menu:
+            st.subheader("🍔 Catálogo de Productos")
+            with get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT id, nombre, precio, icono, imagen_path FROM productos"
+                )
+                productos = cursor.fetchall()
+
+            if not productos:
+                st.info("No hay productos registrados en el menú.")
+
+            cols = st.columns(3)
+            for idx, prod in enumerate(productos):
+                with cols[idx % 3]:
+                    with st.container(border=True):
+                        img_path = prod["imagen_path"]
+                        if img_path and os.path.exists(img_path):
+                            st.image(img_path, use_container_width=True)
+                        else:
+                            st.markdown(
+                                f"<h1 style='text-align: center; margin: 10px 0;'>{prod['icono']}</h1>",
+                                unsafe_allow_html=True,
+                            )
+
+                        st.markdown(f"**{prod['nombre']}**")
                         st.markdown(
-                            f"<h1 style='text-align: center; margin: 10px 0;'>{prod['icono']}</h1>",
+                            f"<h3 style='color: #10b981; margin: 0;'>${prod['precio']:.2f}</h3>",
                             unsafe_allow_html=True,
                         )
 
-                    st.markdown(
-                        f"<p style='color: #0f172a; font-weight: bold; font-size: 15px; margin:0;'>{prod['nombre']}</p>",
-                        unsafe_allow_html=True,
-                    )
-                    st.markdown(
-                        f"<h3 style='color: #059669; margin: 0;'>${prod['precio']:.2f}</h3>",
-                        unsafe_allow_html=True,
-                    )
+                        if st.button(
+                            "➕ Agregar",
+                            key=f"add_{prod['id']}",
+                            use_container_width=True,
+                        ):
+                            st.session_state.carrito.append(
+                                {
+                                    "nombre": prod["nombre"],
+                                    "precio": prod["precio"],
+                                }
+                            )
+                            st.rerun()
 
-                    if st.button(
-                        "➕ Agregar",
-                        key=f"add_{prod['id']}",
-                        use_container_width=True,
-                    ):
-                        st.session_state.carrito.append(
-                            {
-                                "nombre": prod["nombre"],
-                                "precio": prod["precio"],
-                            }
-                        )
-                        st.rerun()
+        with col_carrito:
+            with st.container(border=True):
+                st.subheader("📋 Orden del Cliente")
+                cliente = st.text_input(
+                    "Nombre de Cliente / Mesa",
+                    key="cliente_input",
+                    placeholder="Ej. Mesa 4 / Juan",
+                )
 
-    with col_carrito:
-        with st.container(border=True):
-            st.subheader("📋 Orden del Cliente")
-            cliente = st.text_input(
-                "Nombre de Cliente / Mesa",
-                key="cliente_input",
-                placeholder="Ej. Mesa 4 / Juan",
-            )
-
-            st.markdown("---")
-            total = 0.0
-            if not st.session_state.carrito:
-                st.caption("El carrito está vacío.")
-            else:
-                for i, item in enumerate(st.session_state.carrito):
-                    c1, c2, c3 = st.columns([3, 2, 1])
-                    c1.write(f"**{item['nombre']}**")
-                    c2.write(f"${item['precio']:.2f}")
-                    if c3.button("❌", key=f"del_cart_{i}"):
-                        st.session_state.carrito.pop(i)
-                        st.rerun()
-                    total += item["precio"]
-
-            st.markdown("---")
-            st.markdown(
-                f"<div style='text-align: right;'><span style='color: #475569; font-weight: bold;'>Total a Pagar:</span><h2 style='color: #059669; margin:0;'>${total:.2f}</h2></div>",
-                unsafe_allow_html=True,
-            )
-            st.write("")
-
-            if st.button(
-                "🚀 ENVIAR A COCINA Y CAJA",
-                type="primary",
-                use_container_width=True,
-            ):
-                if not cliente.strip():
-                    st.warning("Escribe el nombre del cliente o mesa.")
-                elif not st.session_state.carrito:
-                    st.warning("Selecciona productos del menú.")
+                st.markdown("---")
+                total = 0.0
+                if not st.session_state.carrito:
+                    st.caption("El carrito está vacío.")
                 else:
-                    fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    items_json = json.dumps(st.session_state.carrito)
-                    with get_connection() as conn:
-                        cursor = conn.cursor()
-                        cursor.execute(
-                            "INSERT INTO pedidos (cliente, items, total, mesero, fecha_hora) VALUES (?, ?, ?, ?, ?)",
-                            (
-                                cliente,
-                                items_json,
-                                total,
-                                st.session_state.usuario_actual,
-                                fecha_actual,
-                            ),
-                        )
-                        conn.commit()
-                    st.session_state.carrito = []
-                    st.success("¡Orden enviada!")
-                    st.rerun()
+                    for i, item in enumerate(st.session_state.carrito):
+                        c1, c2, c3 = st.columns([3, 2, 1])
+                        c1.write(item["nombre"])
+                        c2.write(f"${item['precio']:.2f}")
+                        if c3.button("❌", key=f"del_cart_{i}"):
+                            st.session_state.carrito.pop(i)
+                            st.rerun()
+                        total += item["precio"]
+
+                st.markdown("---")
+                st.markdown(
+                    f"<div style='text-align: right;'><span style='color: #94a3b8;'>Total a Pagar:</span><h2 style='color: #10b981; margin:0;'>${total:.2f}</h2></div>",
+                    unsafe_allow_html=True,
+                )
+                st.write("")
+
+                if st.button(
+                    "🚀 ENVIAR A COCINA Y CAJA",
+                    type="primary",
+                    use_container_width=True,
+                ):
+                    if not cliente.strip():
+                        st.warning("Escribe el nombre del cliente o mesa.")
+                    elif not st.session_state.carrito:
+                        st.warning("Selecciona productos del menú.")
+                    else:
+                        fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        items_json = json.dumps(st.session_state.carrito)
+                        with get_connection() as conn:
+                            cursor = conn.cursor()
+                            cursor.execute(
+                                "INSERT INTO pedidos (cliente, items, total, mesero, fecha_hora) VALUES (?, ?, ?, ?, ?)",
+                                (
+                                    cliente,
+                                    items_json,
+                                    total,
+                                    st.session_state.usuario_actual,
+                                    fecha_actual,
+                                ),
+                            )
+                            conn.commit()
+                        st.session_state.carrito = []
+                        st.success("¡Orden enviada!")
+                        st.rerun()
+
+    # ------------------ TAB 2: EDITAR Y BORRAR PEDIDOS ACTIVOS ------------------
+    with tab_editar:
+        st.subheader("🛠️ Administrar Pedidos en Curso")
+        
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id, cliente, items, total, estado, mesero, fecha_hora FROM pedidos WHERE estado != 'cobrado' AND estado != 'anulado' ORDER BY id DESC"
+            )
+            pedidos_activos = cursor.fetchall()
+
+        if not pedidos_activos:
+            st.info("No hay pedidos activos para modificar en este momento.")
+        else:
+            for p in pedidos_activos:
+                with st.container(border=True):
+                    col_p1, col_p2, col_p3 = st.columns([2, 2, 1.5])
+                    
+                    with col_p1:
+                        st.markdown(f"### Orden #{p['id']} - <span style='color:#38bdf8;'>{p['cliente']}</span>", unsafe_allow_html=True)
+                        st.caption(f"Atendido por: {p['mesero']} | 🕒 {p['fecha_hora']}")
+                        
+                        if p["estado"] == "preparado":
+                            st.markdown("<span class='badge-preparado'>¡LISTO PARA ENTREGAR!</span>", unsafe_allow_html=True)
+                        else:
+                            st.markdown("<span class='badge-pendiente'>En cocina...</span>", unsafe_allow_html=True)
+
+                    with col_p2:
+                        st.markdown("**Productos:**")
+                        items = json.loads(p["items"])
+                        for it in items:
+                            st.write(f"• {it['nombre']} (${it['precio']:.2f})")
+                        st.markdown(f"<h3 style='color:#10b981; margin:0;'>Total: ${p['total']:.2f}</h3>", unsafe_allow_html=True)
+
+                    with col_p3:
+                        st.write("")
+                        # Popover para Editar el Pedido
+                        with st.popover("✏️ Editar Pedido", use_container_width=True):
+                            st.markdown(f"#### Modificar Orden #{p['id']}")
+                            nuevo_cliente = st.text_input("Cliente/Mesa", value=p["cliente"], key=f"edit_cli_{p['id']}")
+                            
+                            # Obtener productos del menú para añadir
+                            with get_connection() as conn_prod:
+                                c_prod = conn_prod.cursor()
+                                c_prod.execute("SELECT nombre, precio FROM productos")
+                                prods_menu = c_prod.fetchall()
+                            
+                            if prods_menu:
+                                prod_select = st.selectbox(
+                                    "Añadir Producto:",
+                                    [f"{pm['nombre']} - ${pm['precio']:.2f}" for pm in prods_menu],
+                                    key=f"select_p_{p['id']}"
+                                )
+                                
+                                if st.button("➕ Añadir este producto", key=f"btn_add_p_{p['id']}"):
+                                    nombre_p = prod_select.split(" - $")[0]
+                                    precio_p = float(prod_select.split(" - $")[1])
+                                    
+                                    items.append({"nombre": nombre_p, "precio": precio_p})
+                                    nuevo_total = p["total"] + precio_p
+                                    
+                                    with get_connection() as conn_up:
+                                        c_up = conn_up.cursor()
+                                        c_up.execute(
+                                            "UPDATE pedidos SET cliente=?, items=?, total=? WHERE id=?",
+                                            (nuevo_cliente, json.dumps(items), nuevo_total, p["id"])
+                                        )
+                                        conn_up.commit()
+                                    st.success(f"¡Añadido {nombre_p}!")
+                                    st.rerun()
+
+                            # Botón para actualizar el nombre de la mesa/cliente
+                            if st.button("💾 Guardar Cambios Nombre", key=f"save_name_{p['id']}"):
+                                with get_connection() as conn_up_name:
+                                    c_un = conn_up_name.cursor()
+                                    c_un.execute(
+                                        "UPDATE pedidos SET cliente=? WHERE id=?",
+                                        (nuevo_cliente, p["id"])
+                                    )
+                                    conn_up_name.commit()
+                                st.success("¡Mesa/Cliente actualizada!")
+                                st.rerun()
+
+                        # Botón para Borrar / Anular Pedido
+                        if st.button("🗑️ Anular / Eliminar", key=f"del_ped_{p['id']}", use_container_width=True):
+                            with get_connection() as conn_del:
+                                c_del = conn_del.cursor()
+                                c_del.execute("UPDATE pedidos SET estado='anulado' WHERE id=?", (p["id"],))
+                                conn_del.commit()
+                            st.warning(f"Orden #{p['id']} Anulada.")
+                            st.rerun()
 
 
 # ---------------------------------------------------------
@@ -423,13 +537,10 @@ def vista_cocina():
         with cols[idx % 3]:
             with st.container(border=True):
                 st.markdown(
-                    f"<h3 style='color: #ea580c; margin:0;'>Orden #{p['id']}</h3>",
+                    f"<h3 style='color: #f97316; margin:0;'>Orden #{p['id']}</h3>",
                     unsafe_allow_html=True,
                 )
-                st.markdown(
-                    f"<p style='color: #0f172a; font-weight: bold; margin:0;'>Cliente: {p['cliente']}</p>",
-                    unsafe_allow_html=True,
-                )
+                st.markdown(f"**Cliente:** {p['cliente']}")
                 st.caption(
                     f"Atendido por: {p['mesero']} | 🕒 {p['fecha_hora'][11:16] if p['fecha_hora'] else ''}"
                 )
@@ -438,7 +549,7 @@ def vista_cocina():
                 items = json.loads(p["items"])
                 for it in items:
                     st.markdown(
-                        f"<p style='color: #0f172a; font-weight: 600; margin:2px 0;'>• {it['nombre']}</p>",
+                        f"<span style='color: #f8fafc;'>• {it['nombre']}</span>",
                         unsafe_allow_html=True,
                     )
 
@@ -477,7 +588,7 @@ def vista_caja():
         col_caja1, col_caja2 = st.columns([3, 1.2])
         if not caja_abierta:
             col_caja1.markdown(
-                "<h3 style='color: #dc2626; margin:0;'>🔴 CAJA CERRADA</h3>",
+                "<h3 style='color: #ef4444; margin:0;'>🔴 CAJA CERRADA</h3>",
                 unsafe_allow_html=True,
             )
             with col_caja2.popover("🔓 Abrir Caja"):
@@ -501,7 +612,7 @@ def vista_caja():
                     st.rerun()
         else:
             col_caja1.markdown(
-                f"<h3 style='color: #059669; margin:0;'>🟢 CAJA ABIERTA <small style='font-size:14px; color:#475569;'>(Base: ${caja_abierta['monto_apertura']:.2f})</small></h3>",
+                f"<h3 style='color: #10b981; margin:0;'>🟢 CAJA ABIERTA <small style='font-size:14px; color:#94a3b8;'>(Base: ${caja_abierta['monto_apertura']:.2f})</small></h3>",
                 unsafe_allow_html=True,
             )
             if col_caja2.button("🔒 CERRAR CAJA (ARQUEO)"):
@@ -545,7 +656,7 @@ def vista_caja():
         with cols[idx % 3]:
             with st.container(border=True):
                 st.markdown(
-                    f"### Orden #{p['id']} - <span style='color:#0284c7;'>{p['cliente']}</span>",
+                    f"### Orden #{p['id']} - <span style='color:#38bdf8;'>{p['cliente']}</span>",
                     unsafe_allow_html=True,
                 )
                 st.caption(f"Mesero: {p['mesero']}")
@@ -562,7 +673,7 @@ def vista_caja():
                     )
 
                 st.markdown(
-                    f"<h2 style='color:#059669; margin-top:10px;'>${p['total']:.2f}</h2>",
+                    f"<h2 style='color:#10b981; margin-top:10px;'>${p['total']:.2f}</h2>",
                     unsafe_allow_html=True,
                 )
 
