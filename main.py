@@ -747,11 +747,12 @@ def vista_caja():
 
 
 # ---------------------------------------------------------
-# VISTA: MULTIFUNCIÓN (CAJERO & MESERO EN UNA MISMA PANTALLA)
+# VISTA: MULTIFUNCIÓN (CATÁLOGO MESERO + CAJA EN PANTALLA)
 # ---------------------------------------------------------
 def vista_multifuncion():
     st.markdown("<h1>⚡ Módulo Integrado (Caja & Mesero)</h1>", unsafe_allow_html=True)
 
+    # 1. Apertura / Cierre de Caja
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -797,59 +798,95 @@ def vista_multifuncion():
                 st.success(f"Caja Cerrada. Arqueo: ${esperado:.2f}")
                 st.rerun()
 
-    col_toma, col_cobros, col_edicion = st.columns([1.2, 1.2, 1.2])
+    # 2. Distribución en 2 grandes bloques: Tomar Pedido (Catálogo Mesero) y Panel de Caja/Mesa
+    col_izq, col_der = st.columns([2.2, 1.8])
 
-    # --- COLUMNA 1: TOMAR NUEVO PEDIDO ---
-    with col_toma:
-        with st.container(border=True):
-            st.subheader("🛒 Nuevo Pedido")
-            cli_multi = st.text_input("Mesa / Cliente:", key="cli_multi")
-            
-            with get_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT id, nombre, precio FROM productos")
-                prods = c.fetchall()
+    # --- IZQUIERDA: CATÁLOGO VISUAL TAL CUAL COMO EL MESERO ---
+    with col_izq:
+        st.subheader("🍔 Catálogo de Productos")
+        with get_connection() as conn:
+            c = conn.cursor()
+            c.execute("SELECT id, nombre, precio, icono, imagen_path FROM productos")
+            productos_m = c.fetchall()
 
-            if prods:
-                p_selected = st.selectbox("Selecciona Producto:", [f"{p['nombre']} - ${p['precio']:.2f}" for p in prods])
-                if st.button("➕ Agregar al Carrito", use_container_width=True):
-                    nom = p_selected.split(" - $")[0]
-                    prec = float(p_selected.split(" - $")[1])
-                    st.session_state.carrito.append({"nombre": nom, "precio": prec})
-                    st.rerun()
+        if not productos_m:
+            st.info("No hay productos en el menú.")
 
-            st.markdown("---")
-            total_c = 0.0
-            for idx, item in enumerate(st.session_state.carrito):
-                cx, cy = st.columns([3, 1])
-                cx.write(f"• {item['nombre']} (${item['precio']:.2f})")
-                if cy.button("❌", key=f"del_m_{idx}"):
-                    st.session_state.carrito.pop(idx)
-                    st.rerun()
-                total_c += item["precio"]
-
-            st.markdown(f"### Total: `${total_c:.2f}`")
-
-            if st.button("🚀 ENVIAR ORDEN", type="primary", use_container_width=True):
-                if not cli_multi.strip() or not st.session_state.carrito:
-                    st.warning("Completa la mesa y el carrito.")
-                else:
-                    fecha_act = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    with get_connection() as conn:
-                        c = conn.cursor()
-                        c.execute(
-                            "INSERT INTO pedidos (cliente, items, total, mesero, fecha_hora) VALUES (?, ?, ?, ?, ?)",
-                            (cli_multi, json.dumps(st.session_state.carrito), total_c, st.session_state.usuario_actual, fecha_act),
+        cols_m = st.columns(2)
+        for idx_m, prod_m in enumerate(productos_m):
+            with cols_m[idx_m % 2]:
+                with st.container(border=True):
+                    img_p = prod_m["imagen_path"]
+                    if img_p and os.path.exists(img_p):
+                        st.image(img_p, use_container_width=True)
+                    else:
+                        st.markdown(
+                            f"<h1 style='text-align: center; margin: 5px 0;'>{prod_m['icono']}</h1>",
+                            unsafe_allow_html=True,
                         )
-                        conn.commit()
-                    st.session_state.carrito = []
-                    st.success("¡Orden Enviada!")
-                    st.rerun()
 
-    # --- COLUMNA 2: PANTALLA DE COBROS ---
-    with col_cobros:
-        with st.container(border=True):
-            st.subheader("💵 Cobrar Pedidos")
+                    st.markdown(f"**{prod_m['nombre']}**")
+                    st.markdown(
+                        f"<h4 style='color: #10b981; margin: 0;'>${prod_m['precio']:.2f}</h4>",
+                        unsafe_allow_html=True,
+                    )
+
+                    if st.button(
+                        "➕ Agregar",
+                        key=f"add_mult_{prod_m['id']}",
+                        use_container_width=True,
+                    ):
+                        st.session_state.carrito.append(
+                            {
+                                "nombre": prod_m["nombre"],
+                                "precio": prod_m["precio"],
+                            }
+                        )
+                        st.rerun()
+
+    # --- DERECHA: CARRITO + COBROS + MODIFICACIÓN DE MESAS ---
+    with col_der:
+        tab_c1, tab_c2, tab_c3 = st.tabs(["🛒 Carrito Actual", "💵 Cobrar Cuentas", "🛠️ Gestor Mesas"])
+
+        # Tab 1: Carrito para enviar orden
+        with tab_c1:
+            with st.container(border=True):
+                cli_multi = st.text_input("Mesa / Cliente:", key="cli_multi", placeholder="Ej. Mesa 2")
+                st.markdown("---")
+                tot_multi = 0.0
+                if not st.session_state.carrito:
+                    st.caption("El carrito está vacío.")
+                else:
+                    for i_m, it_m in enumerate(st.session_state.carrito):
+                        cx, cy, cz = st.columns([3, 2, 1])
+                        cx.write(it_m["nombre"])
+                        cy.write(f"${it_m['precio']:.2f}")
+                        if cz.button("❌", key=f"del_m_cart_{i_m}"):
+                            st.session_state.carrito.pop(i_m)
+                            st.rerun()
+                        tot_multi += it_m["precio"]
+
+                st.markdown("---")
+                st.markdown(f"<h3 style='color: #10b981; text-align: right;'>Total: ${tot_multi:.2f}</h3>", unsafe_allow_html=True)
+
+                if st.button("🚀 ENVIAR ORDEN A COCINA", type="primary", use_container_width=True):
+                    if not cli_multi.strip() or not st.session_state.carrito:
+                        st.warning("Escribe el nombre de la mesa y selecciona productos.")
+                    else:
+                        fecha_act = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        with get_connection() as conn:
+                            c = conn.cursor()
+                            c.execute(
+                                "INSERT INTO pedidos (cliente, items, total, mesero, fecha_hora) VALUES (?, ?, ?, ?, ?)",
+                                (cli_multi, json.dumps(st.session_state.carrito), tot_multi, st.session_state.usuario_actual, fecha_act),
+                            )
+                            conn.commit()
+                        st.session_state.carrito = []
+                        st.success("¡Orden Enviada!")
+                        st.rerun()
+
+        # Tab 2: Cobros pendientes
+        with tab_c2:
             with get_connection() as conn:
                 c = conn.cursor()
                 c.execute("SELECT id, cliente, total, estado FROM pedidos WHERE estado != 'cobrado' AND estado != 'anulado' ORDER BY id DESC")
@@ -878,10 +915,8 @@ def vista_multifuncion():
                             st.success(f"Cobrado. Cambio: ${cambio:.2f}")
                             st.rerun()
 
-    # --- COLUMNA 3: EDITAR O BORRAR PEDIDOS ACTIVOS ---
-    with col_edicion:
-        with st.container(border=True):
-            st.subheader("🛠️ Gestor de Mesas")
+        # Tab 3: Gestor de Mesas (Editar / Borrar)
+        with tab_c3:
             with get_connection() as conn:
                 c = conn.cursor()
                 c.execute("SELECT id, cliente, items, total FROM pedidos WHERE estado != 'cobrado' AND estado != 'anulado' ORDER BY id DESC")
@@ -918,8 +953,8 @@ def vista_multifuncion():
 
                             st.markdown("---")
                             st.markdown("**Añadir producto:**")
-                            if prods:
-                                p_add = st.selectbox("Añadir producto:", [f"{pr['nombre']} - ${pr['precio']:.2f}" for pr in prods], key=f"p_add_{pa['id']}")
+                            if productos_m:
+                                p_add = st.selectbox("Añadir producto:", [f"{pr['nombre']} - ${pr['precio']:.2f}" for pr in productos_m], key=f"p_add_{pa['id']}")
                                 if st.button("➕ Añadir", key=f"btn_add_mult_{pa['id']}"):
                                     n_p = p_add.split(" - $")[0]
                                     p_p = float(p_add.split(" - $")[1])
