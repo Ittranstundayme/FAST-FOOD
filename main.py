@@ -22,7 +22,7 @@ if not os.path.exists(IMG_DIR):
     os.makedirs(IMG_DIR)
 
 # ---------------------------------------------------------
-# INYECCIÓN DE ESTILOS CSS (TEMA AZUL OSCURO - LETRAS BLANCAS)
+# INYECCIÓN DE ESTILOS CSS (TEMA AZUL OSCURO - LETRAS VISIBLES)
 # ---------------------------------------------------------
 st.markdown(
     """
@@ -47,12 +47,56 @@ st.markdown(
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
     }
 
-    /* FORZAR TEXTOS Y LETRAS A BLANCO PURO */
+    /* TEXTOS GLOBALES DE PANTALLA EN BLANCO */
     p, span, label, div, li, td, th, [data-testid="stMarkdownContainer"] p {
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
         font-weight: 500;
     }
+
+    /* -------------------------------------------------- */
+    /* CORRECCIÓN PARA CUADROS BLANCOS, DESPLEGABLES Y POPOVERS */
+    /* -------------------------------------------------- */
+    
+    /* Opciones del Selectbox / Desplegable (Fondo blanco -> Letras oscuras) */
+    [data-baseweb="menu"], [data-baseweb="popover"], div[role="listbox"], ul[role="listbox"] {
+        background-color: #ffffff !important;
+    }
+    
+    [data-baseweb="menu"] * , [data-baseweb="popover"] * , div[role="listbox"] * , ul[role="listbox"] * {
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+        font-weight: 600 !important;
+    }
+
+    /* Hover de opciones desplegables */
+    [data-baseweb="option"] {
+        background-color: #ffffff !important;
+    }
+    [data-baseweb="option"]:hover, [aria-selected="true"] {
+        background-color: #e2e8f0 !important;
+    }
+
+    /* Inputs de texto y selectores principales */
+    input, select, [data-baseweb="select"] > div {
+        background-color: #1e293b !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        border: 1px solid #475569 !important;
+    }
+
+    /* Botones secundarios / blancos (Anular, Cerrar Sesión) */
+    button:not([kind="primary"]) {
+        background-color: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+    }
+    button:not([kind="primary"]) * {
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+        font-weight: bold !important;
+    }
+
+    /* -------------------------------------------------- */
 
     /* Título H1 principal */
     h1 {
@@ -69,7 +113,7 @@ st.markdown(
         font-weight: 700 !important;
     }
 
-    /* Pestañas (Tabs) con alto contraste */
+    /* Pestañas (Tabs) */
     [data-baseweb="tab-list"] {
         background-color: #1e293b !important;
         border-radius: 8px !important;
@@ -80,11 +124,11 @@ st.markdown(
         -webkit-text-fill-color: #94a3b8 !important;
         font-weight: bold !important;
     }
-    [aria-selected="true"] {
+    [data-baseweb="tab"][aria-selected="true"] {
         background-color: #334155 !important;
         border-radius: 6px !important;
     }
-    [aria-selected="true"] p {
+    [data-baseweb="tab"][aria-selected="true"] p {
         color: #38bdf8 !important;
         -webkit-text-fill-color: #38bdf8 !important;
     }
@@ -101,21 +145,12 @@ st.markdown(
         font-weight: 700 !important;
     }
 
-    /* Campos de entrada legibles */
-    input, select, [data-baseweb="select"] div {
-        background-color: #0f172a !important;
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-        border-color: #334155 !important;
-    }
-
     /* Botones primarios (Verde Esmeralda) */
     button[kind="primary"] {
         background: linear-gradient(90deg, #059669 0%, #10b981 100%) !important;
         border: none !important;
-        box-shadow: 0 0 10px rgba(16, 185, 129, 0.4) !important;
     }
-    button[kind="primary"] p {
+    button[kind="primary"] * {
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
         font-weight: bold !important;
@@ -704,7 +739,6 @@ def vista_caja():
 def vista_multifuncion():
     st.markdown("<h1>⚡ Módulo Integrado (Caja & Mesero)</h1>", unsafe_allow_html=True)
 
-    # Arriba: Control de Apertura / Cierre de Caja
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -750,7 +784,6 @@ def vista_multifuncion():
                 st.success(f"Caja Cerrada. Arqueo: ${esperado:.2f}")
                 st.rerun()
 
-    # Layout de 3 columnas para tener TODO en la misma pantalla
     col_toma, col_cobros, col_edicion = st.columns([1.2, 1.2, 1.2])
 
     # --- COLUMNA 1: TOMAR NUEVO PEDIDO ---
