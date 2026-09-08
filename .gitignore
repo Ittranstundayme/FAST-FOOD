@@ -1,12 +1,4 @@
-# Base de datos y archivos locales
-restaurante.db
-imagenes/
-
-# Archivos de Python
 __pycache__/
-*.pyc
-*.pyo
-.DS_Store
-.vscode/
-.idea/
-venv/
+*.db
+*.sqlite3
+imagenes/
