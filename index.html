@@ -91,7 +91,6 @@
             <!-- VISTA: CAJA -->
             <section id="viewCaja" class="hidden space-y-4">
                 <h2 class="text-2xl font-bold text-sky-400">💰 Panel de Cobros y Caja</h2>
-                <div id="cajaStatus" class="card p-4 flex justify-between items-center"></div>
                 <div id="pendingOrders" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
             </section>
 
@@ -147,10 +146,42 @@
                 </div>
             </section>
 
-            <!-- VISTA: ADMIN CONFIGURACIÓN -->
+            <!-- VISTA: ADMIN CONFIGURACIÓN (INCLUYE USUARIOS) -->
             <section id="viewAdmin" class="hidden space-y-6">
                 <h2 class="text-2xl font-bold text-purple-400">⚙️ Configuración del Sistema</h2>
-                
+
+                <!-- USUARIOS Y ROLES -->
+                <div class="card p-6 space-y-4">
+                    <h3 class="font-bold text-lg text-emerald-400">👥 Gestión de Usuarios y Personal</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <input type="text" id="newFullName" placeholder="Nombre Completo" class="bg-slate-900 border border-slate-700 rounded p-2 text-sm">
+                        <input type="text" id="newUsername" placeholder="Usuario (Login)" class="bg-slate-900 border border-slate-700 rounded p-2 text-sm">
+                        <input type="password" id="newPassword" placeholder="Contraseña" class="bg-slate-900 border border-slate-700 rounded p-2 text-sm">
+                        <select id="newRole" class="bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                            <option value="mesero">Mesero</option>
+                            <option value="cocina">Cocina</option>
+                            <option value="caja">Caja</option>
+                            <option value="multitarea">Multitarea</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </div>
+                    <button onclick="addUser()" class="btn-primary px-4 py-2 rounded text-sm w-full md:w-auto">➕ Guardar Usuario</button>
+
+                    <div class="overflow-x-auto mt-4">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-700 text-slate-300">
+                                <tr>
+                                    <th class="p-2">Nombre</th>
+                                    <th class="p-2">Usuario</th>
+                                    <th class="p-2">Rol / Cargo</th>
+                                    <th class="p-2">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody" class="divide-y divide-slate-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- SECCIONES -->
                     <div class="card p-4 space-y-3">
@@ -196,18 +227,17 @@
     </div>
 
     <script>
-        // BASE DE DATOS LOCAL (IndexedDB Wrapper)
+        // BASE DE DATOS LOCAL (IndexedDB)
         let db;
-        const request = indexedDB.open("FastFoodPOS", 1);
+        const request = indexedDB.open("FastFoodPOS", 2);
 
         request.onupgradeneeded = (e) => {
             db = e.target.result;
-            db.createObjectStore("usuarios", { keyPath: "usuario" });
-            db.createObjectStore("categorias", { keyPath: "id", autoIncrement: true });
-            db.createObjectStore("salsas", { keyPath: "id", autoIncrement: true });
-            db.createObjectStore("productos", { keyPath: "id", autoIncrement: true });
-            db.createObjectStore("pedidos", { keyPath: "id", autoIncrement: true });
-            db.createObjectStore("cajas", { keyPath: "id", autoIncrement: true });
+            if (!db.objectStoreNames.contains("usuarios")) db.createObjectStore("usuarios", { keyPath: "usuario" });
+            if (!db.objectStoreNames.contains("categorias")) db.createObjectStore("categorias", { keyPath: "id", autoIncrement: true });
+            if (!db.objectStoreNames.contains("salsas")) db.createObjectStore("salsas", { keyPath: "id", autoIncrement: true });
+            if (!db.objectStoreNames.contains("productos")) db.createObjectStore("productos", { keyPath: "id", autoIncrement: true });
+            if (!db.objectStoreNames.contains("pedidos")) db.createObjectStore("pedidos", { keyPath: "id", autoIncrement: true });
         };
 
         request.onsuccess = (e) => {
@@ -248,8 +278,8 @@
         // LOGIN / LOGOUT
         function handleLogin(e) {
             e.preventDefault();
-            const u = document.getElementById("loginUser").value;
-            const p = document.getElementById("loginPass").value;
+            const u = document.getElementById("loginUser").value.trim();
+            const p = document.getElementById("loginPass").value.trim();
 
             const tx = db.transaction("usuarios", "readonly");
             const req = tx.objectStore("usuarios").get(u);
@@ -329,7 +359,6 @@
             const catSelect = document.getElementById("filterCategory");
             const catalogGrid = document.getElementById("catalogGrid");
 
-            // Cargar categorías
             const txCat = db.transaction("categorias", "readonly");
             txCat.objectStore("categorias").getAll().onsuccess = (e) => {
                 const cats = e.target.result;
@@ -338,7 +367,6 @@
                 if(currentVal) catSelect.value = currentVal;
             };
 
-            // Cargar productos
             const txProd = db.transaction("productos", "readonly");
             txProd.objectStore("productos").getAll().onsuccess = (e) => {
                 let prods = e.target.result;
@@ -527,7 +555,6 @@
                 document.getElementById("kpiTotal").innerText = `$${totalMonto.toFixed(2)}`;
                 document.getElementById("kpiCount").innerText = all.length;
 
-                // Desglose de pagos
                 const breakdown = {};
                 cobrados.forEach(p => {
                     breakdown[p.metodo_pago] = (breakdown[p.metodo_pago] || 0) + p.total;
@@ -540,7 +567,6 @@
                     </div>
                 `).join("") || `<div class="text-xs text-slate-500">Sin ventas hoy.</div>`;
 
-                // Tabla
                 document.getElementById("reportTableBody").innerHTML = all.map(p => `
                     <tr>
                         <td class="p-2">#${p.id}</td>
@@ -555,8 +581,10 @@
             };
         }
 
-        // ADMIN
+        // ADMIN CONFIGURACIÓN
         function renderAdminConfig() {
+            renderUsers();
+
             // Categorías
             const txCat = db.transaction("categorias", "readonly");
             txCat.objectStore("categorias").getAll().onsuccess = (e) => {
@@ -578,6 +606,59 @@
                     </li>
                 `).join("");
             };
+        }
+
+        // GESTIÓN DE USUARIOS
+        function renderUsers() {
+            const tx = db.transaction("usuarios", "readonly");
+            tx.objectStore("usuarios").getAll().onsuccess = (e) => {
+                const users = e.target.result;
+                document.getElementById("usersTableBody").innerHTML = users.map(u => `
+                    <tr>
+                        <td class="p-2 font-medium">${u.nombre}</td>
+                        <td class="p-2 text-slate-400">${u.usuario}</td>
+                        <td class="p-2"><span class="bg-slate-700 px-2 py-1 rounded text-xs font-bold uppercase">${u.rol}</span></td>
+                        <td class="p-2">
+                            ${u.usuario !== currentUser.usuario ? `<button onclick="deleteUser('${u.usuario}')" class="text-red-400 hover:text-red-300 font-bold text-xs">Eliminar</button>` : '<span class="text-xs text-slate-500">Actual</span>'}
+                        </td>
+                    </tr>
+                `).join("");
+            };
+        }
+
+        function addUser() {
+            const nombre = document.getElementById("newFullName").value.trim();
+            const usuario = document.getElementById("newUsername").value.trim();
+            const clave = document.getElementById("newPassword").value.trim();
+            const rol = document.getElementById("newRole").value;
+
+            if (!nombre || !usuario || !clave) return alert("Completa todos los campos para crear el usuario.");
+
+            const tx = db.transaction("usuarios", "readwrite");
+            const store = tx.objectStore("usuarios");
+            
+            store.get(usuario).onsuccess = (e) => {
+                if(e.target.result) {
+                    alert("El nombre de usuario ya existe.");
+                } else {
+                    store.add({ usuario, clave, nombre, rol });
+                    tx.oncomplete = () => {
+                        document.getElementById("newFullName").value = "";
+                        document.getElementById("newUsername").value = "";
+                        document.getElementById("newPassword").value = "";
+                        renderUsers();
+                        alert("Usuario registrado con éxito.");
+                    };
+                }
+            };
+        }
+
+        function deleteUser(username) {
+            if(confirm(`¿Seguro que deseas eliminar al usuario '${username}'?`)) {
+                const tx = db.transaction("usuarios", "readwrite");
+                tx.objectStore("usuarios").delete(username);
+                tx.oncomplete = () => renderUsers();
+            }
         }
 
         function addCategory() {
