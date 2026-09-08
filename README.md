@@ -1,23 +1,15 @@
 # ⚡ FastFood POS Pro
 
-Sistema de Punto de Venta (POS) moderno y standalone para restaurantes de comida rápida desarrollado en Python.
+Sistema de Punto de Venta (POS) modular y moderno desarrollado en Python con **CustomTkinter** y **SQLite3**.
 
-## 🚀 Características
-- **Control de Acceso por Roles**: Administrador, Mesero, Cocina y Caja.
-- **Gestión de Menú**: Alta, baja y edición de productos con soporte para imágenes locales.
-- **Administración de Personal**: Crear, editar usuarios y cambiar contraseñas.
-- **Monitor de Cocina**: Recepción de comandas en tiempo real.
-- **Módulo de Caja**: Arqueo (Apertura/Cierre de caja) y adición de productos extra de última hora.
-- **Reportes & Analytics**: Filtro de historial por fecha (Hoy, Ayer, Últimos 7 días).
+## Características
+- 👥 **Múltiples Roles:** Administrador, Mesero, Cocina, Caja y Usuario Multitarea.
+- 📁 **Gestión Dinámica de Menú:** Secciones, categorías y productos con/sin modificadores.
+- 🥫 **Control de Salsas y Términos:** Asignación personalizada por producto.
+- 💳 **Formas de Pago Múltiples:** Efectivo, Transferencias (Banco Pichincha, Banco de Loja) y personalizables.
+- 📊 **Reportes Detallados:** Filtrado por fechas específicas, auditoría de usuarios y arqueo de caja.
 
-## 🛠️ Tecnologías Utilizadas
-- **Python 3.x**
-- **CustomTkinter** (Interfaz gráfica moderna)
-- **SQLite3** (Base de datos local)
-- **Pillow / PIL** (Procesamiento de imágenes)
-
-## 🔧 Instalación y Ejecución
-
-1. Clonar el repositorio:
-   ```bash
-   git clone [https://github.com/TU_USUARIO/fastfood-pos-pro.git](https://github.com/TU_USUARIO/fastfood-pos-pro.git)
+## Instalación
+```bash
+pip install -r requirements.txt
+python main.py
