@@ -2,187 +2,41 @@ import json
 import os
 import sqlite3
 from datetime import datetime, timedelta
-import streamlit as st
+import customtkinter as ctk
+from tkinter import filedialog, messagebox
 from PIL import Image
 
-# ---------------------------------------------------------
-# CONFIGURACIÓN DE LA PÁGINA
-# ---------------------------------------------------------
-st.set_page_config(
-    page_title="FastFood POS Pro",
-    page_icon="⚡",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+# Configuración visual
+ctk.set_appearance_mode("Dark")
+ctk.set_default_color_theme("blue")
 
-DB_NAME = "restaurante.db"
-IMG_DIR = "imagenes"
+class SistemaPOSPro(ctk.CTk):
 
-if not os.path.exists(IMG_DIR):
-    os.makedirs(IMG_DIR)
+    def __init__(self):
+        super().__init__()
 
-# ---------------------------------------------------------
-# INYECCIÓN DE ESTILOS CSS
-# ---------------------------------------------------------
-st.markdown(
-    """
-    <style>
-    /* Fondo principal con degradado azul oscuro */
-    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
-        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%) !important;
-        color: #ffffff !important;
-    }
-    
-    /* Barra lateral */
-    [data-testid="stSidebar"], [data-testid="stSidebar"] > div {
-        background-color: #0d1117 !important;
-        border-right: 1px solid #1f2937 !important;
-    }
-    
-    /* Tarjetas principales */
-    [data-testid="stVerticalBlockBorderWrapper"], div[data-testid="stForm"] {
-        background: rgba(30, 41, 59, 0.85) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        border-radius: 12px !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
-    }
+        self.title("⚡ FastFood POS Pro - Sistema de Control Central")
+        self.geometry("1280x850")
 
-    /* TEXTO BLANCO GENERAL EN LA ESTRUCTURA DE LA APP */
-    .stApp p, .stApp span, .stApp label, .stApp div:not([data-baseweb]), .stApp li, .stApp td, .stApp th {
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-    }
+        self.init_db()
 
-    /* CORRECCIÓN ESPECÍFICA PARA CUADROS DE CÓDIGO Y ETIQUETAS */
-    code, .stCode, span[data-baseweb="tag"], div[data-baseweb="tag"] {
-        background-color: #334155 !important;
-        color: #38bdf8 !important;
-        -webkit-text-fill-color: #38bdf8 !important;
-        border: 1px solid #475569 !important;
-        border-radius: 6px !important;
-        padding: 2px 8px !important;
-        font-weight: bold !important;
-    }
+        self.usuario_actual = None
+        self.rol_actual = None
+        self.user_id_actual = None
+        self.carrito = []
+        self.ruta_imagen_seleccionada = None
+        self.usuario_id_edicion = None
 
-    /* POP-OVERS, MENÚS Y RECUADROS BLANCOS */
-    [data-baseweb="popover"], [data-baseweb="menu"], div[role="listbox"], ul[role="listbox"], div[data-baseweb="tooltip"] {
-        background-color: #ffffff !important;
-        border: 1px solid #cbd5e1 !important;
-    }
+        self.mostrar_login()
 
-    /* TODO el texto dentro de Popovers y Menús es NEGRO */
-    [data-baseweb="popover"] *, [data-baseweb="menu"] *, div[role="listbox"] *, ul[role="listbox"] * {
-        color: #0f172a !important;
-        -webkit-text-fill-color: #0f172a !important;
-        font-weight: 600 !important;
-    }
+    def init_db(self):
+        if not os.path.exists("imagenes"):
+            os.makedirs("imagenes")
 
-    /* Inputs dentro del Popover */
-    [data-baseweb="popover"] input {
-        background-color: #f8fafc !important;
-        color: #0f172a !important;
-        -webkit-text-fill-color: #0f172a !important;
-        border: 1px solid #cbd5e1 !important;
-    }
+        self.conn = sqlite3.connect("restaurante.db")
+        self.cursor = self.conn.cursor()
 
-    /* INPUTS Y SELECTORES DE LA PANTALLA PRINCIPAL */
-    .stApp input, .stApp select, .stApp [data-baseweb="select"] > div {
-        background-color: #1e293b !important;
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-        border: 1px solid #475569 !important;
-    }
-
-    /* BOTONES SECUNDARIOS / BLANCOS */
-    .stApp button:not([kind="primary"]) {
-        background-color: #ffffff !important;
-        border: 1px solid #cbd5e1 !important;
-    }
-    .stApp button:not([kind="primary"]) * {
-        color: #0f172a !important;
-        -webkit-text-fill-color: #0f172a !important;
-        font-weight: bold !important;
-    }
-
-    /* TÍTULOS Y ENCABEZADOS */
-    h1 {
-        background: linear-gradient(90deg, #10b981, #38bdf8);
-        -webkit-background-clip: text !important;
-        -webkit-text-fill-color: transparent !important;
-        font-weight: 800 !important;
-    }
-
-    h2, h3, .stApp h2, .stApp h3 {
-        color: #38bdf8 !important;
-        -webkit-text-fill-color: #38bdf8 !important;
-        font-weight: 700 !important;
-    }
-
-    /* PESTAÑAS (TABS) */
-    [data-baseweb="tab-list"] {
-        background-color: #1e293b !important;
-        border-radius: 8px !important;
-        padding: 4px !important;
-    }
-    [data-baseweb="tab"] p {
-        color: #94a3b8 !important;
-        -webkit-text-fill-color: #94a3b8 !important;
-        font-weight: bold !important;
-    }
-    [data-baseweb="tab"][aria-selected="true"] {
-        background-color: #334155 !important;
-        border-radius: 6px !important;
-    }
-    [data-baseweb="tab"][aria-selected="true"] p {
-        color: #38bdf8 !important;
-        -webkit-text-fill-color: #38bdf8 !important;
-    }
-
-    /* BOTONES PRIMARIOS */
-    button[kind="primary"] {
-        background: linear-gradient(90deg, #059669 0%, #10b981 100%) !important;
-        border: none !important;
-    }
-    button[kind="primary"] * {
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-        font-weight: bold !important;
-    }
-
-    /* BADGES */
-    .badge-preparado {
-        background-color: #065f46 !important;
-        color: #34d399 !important;
-        -webkit-text-fill-color: #34d399 !important;
-        padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 13px;
-    }
-    .badge-pendiente {
-        background-color: #854d0e !important;
-        color: #fef08a !important;
-        -webkit-text-fill-color: #fef08a !important;
-        padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 13px;
-    }
-    </style>
-""",
-    unsafe_allow_html=True,
-)
-
-
-# ---------------------------------------------------------
-# HELPER DE BASE DE DATOS
-# ---------------------------------------------------------
-def get_connection():
-    conn = sqlite3.connect(DB_NAME, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def init_db():
-    with get_connection() as conn:
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
+        self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 usuario TEXT UNIQUE NOT NULL,
@@ -190,38 +44,80 @@ def init_db():
                 nombre TEXT NOT NULL,
                 rol TEXT NOT NULL
             )
-        """
-        )
+        """)
 
-        cursor.execute("SELECT COUNT(*) FROM usuarios")
-        if cursor.fetchone()[0] == 0:
+        self.cursor.execute("SELECT COUNT(*) FROM usuarios")
+        if self.cursor.fetchone()[0] == 0:
             usuarios_base = [
                 ("mesero1", "1234", "Carlos Gómez", "mesero"),
                 ("cocina1", "1234", "Chef Mario", "cocina"),
                 ("caja1", "1234", "Ana Cajera", "caja"),
-                ("multi1", "1234", "Cajera & Mesera", "multifuncion"),
+                ("multi1", "1234", "Juan Multitarea", "multitarea"),
                 ("admin", "admin", "Administrador", "admin"),
             ]
-            cursor.executemany(
+            self.cursor.executemany(
                 "INSERT INTO usuarios (usuario, clave, nombre, rol) VALUES (?, ?, ?, ?)",
                 usuarios_base,
             )
 
-        cursor.execute(
-            """
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS categorias (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT UNIQUE NOT NULL
+            )
+        """)
+        
+        self.cursor.execute("SELECT COUNT(*) FROM categorias")
+        if self.cursor.fetchone()[0] == 0:
+            cats = [("Alitas & Entradas",), ("Hamburguesas",), ("Bebidas",), ("Porciones & Acompañantes",), ("General",)]
+            self.cursor.executemany("INSERT INTO categorias (nombre) VALUES (?)", cats)
+
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS salsas_terminos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT UNIQUE NOT NULL
+            )
+        """)
+        
+        self.cursor.execute("SELECT COUNT(*) FROM salsas_terminos")
+        if self.cursor.fetchone()[0] == 0:
+            salsas_base = [
+                ("BBQ",), ("Picante",), ("Queso",), ("Mostaza Miel",), 
+                ("Ajo y Hierbas",), ("Bien Cocido",), ("Término Medio",), ("Sin Salsa / Al Natural",)
+            ]
+            self.cursor.executemany("INSERT INTO salsas_terminos (nombre) VALUES (?)", salsas_base)
+
+        self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS productos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nombre TEXT NOT NULL,
                 precio REAL NOT NULL,
                 categoria TEXT DEFAULT 'General',
                 icono TEXT DEFAULT '🍔',
-                imagen_path TEXT DEFAULT ''
+                imagen_path TEXT DEFAULT '',
+                requiere_salsa INTEGER DEFAULT 0
             )
-        """
-        )
+        """)
 
-        cursor.execute(
-            """
+        try:
+            self.cursor.execute("ALTER TABLE productos ADD COLUMN requiere_salsa INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+
+        self.cursor.execute("SELECT COUNT(*) FROM productos")
+        if self.cursor.fetchone()[0] == 0:
+            prods_base = [
+                ("Porción de Alitas (6 unidades)", 5.50, "Alitas & Entradas", "🍗", "", 1),
+                ("Porción de Papas", 1.50, "Porciones & Acompañantes", "🍟", "", 0),
+                ("Porción de Arroz", 1.00, "Porciones & Acompañantes", "🍚", "", 0),
+                ("Porción de Ensalada", 1.25, "Porciones & Acompañantes", "🥗", "", 0),
+            ]
+            self.cursor.executemany(
+                "INSERT INTO productos (nombre, precio, categoria, icono, imagen_path, requiere_salsa) VALUES (?, ?, ?, ?, ?, ?)",
+                prods_base,
+            )
+
+        self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS pedidos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 cliente TEXT NOT NULL,
@@ -229,13 +125,28 @@ def init_db():
                 total REAL NOT NULL,
                 estado TEXT DEFAULT 'pendiente',
                 mesero TEXT DEFAULT 'Sistema',
+                metodo_pago TEXT DEFAULT 'Efectivo',
                 fecha_hora TEXT DEFAULT ''
             )
-        """
-        )
+        """)
 
-        cursor.execute(
-            """
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS metodos_pago (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre TEXT UNIQUE NOT NULL
+            )
+        """)
+
+        self.cursor.execute("SELECT COUNT(*) FROM metodos_pago")
+        if self.cursor.fetchone()[0] == 0:
+            metodos_base = [
+                ("Efectivo",),
+                ("Transf. Banco de Loja",),
+                ("Transf. Banco Pichincha",)
+            ]
+            self.cursor.executemany("INSERT INTO metodos_pago (nombre) VALUES (?)", metodos_base)
+
+        self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS cajas (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 cajero TEXT NOT NULL,
@@ -246,969 +157,1219 @@ def init_db():
                 fecha_cierre TEXT DEFAULT '',
                 estado TEXT DEFAULT 'abierta'
             )
-        """
+        """)
+
+        self.conn.commit()
+
+    def mostrar_login(self):
+        for widget in self.winfo_children():
+            widget.destroy()
+
+        frame_login = ctk.CTkFrame(self, corner_radius=15, width=400, height=450)
+        frame_login.place(relx=0.5, rely=0.5, anchor="center")
+
+        ctk.CTkLabel(
+            frame_login,
+            text="⚡ FastFood POS",
+            font=ctk.CTkFont(size=26, weight="bold"),
+            text_color="#10b981",
+        ).pack(pady=(30, 5))
+        ctk.CTkLabel(
+            frame_login,
+            text="Inicio de Sesión Centralizado",
+            font=ctk.CTkFont(size=14),
+            text_color="gray",
+        ).pack(pady=(0, 20))
+
+        self.entry_user = ctk.CTkEntry(
+            frame_login, placeholder_text="Usuario", width=280, height=45, corner_radius=10
         )
-        conn.commit()
+        self.entry_user.pack(pady=10)
 
+        self.entry_pass = ctk.CTkEntry(
+            frame_login, placeholder_text="Contraseña", show="*", width=280, height=45, corner_radius=10
+        )
+        self.entry_pass.pack(pady=10)
 
-init_db()
+        btn_login = ctk.CTkButton(
+            frame_login,
+            text="INGRESAR AL SISTEMA",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="#10b981",
+            hover_color="#059669",
+            width=280,
+            height=45,
+            corner_radius=10,
+            command=self.validar_login,
+        )
+        btn_login.pack(pady=25)
 
-# ---------------------------------------------------------
-# INICIALIZACIÓN DE SESSION STATE
-# ---------------------------------------------------------
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-if "usuario_actual" not in st.session_state:
-    st.session_state.usuario_actual = None
-if "rol_actual" not in st.session_state:
-    st.session_state.rol_actual = None
-if "carrito" not in st.session_state:
-    st.session_state.carrito = []
+    def validar_login(self):
+        user = self.entry_user.get().strip()
+        clave = self.entry_pass.get().strip()
 
+        self.cursor.execute(
+            "SELECT id, nombre, rol FROM usuarios WHERE usuario=? AND clave=?",
+            (user, clave),
+        )
+        res = self.cursor.fetchone()
 
-# ---------------------------------------------------------
-# AUTENTICACIÓN
-# ---------------------------------------------------------
-def login():
-    st.markdown(
-        "<h1 style='text-align: center; margin-top: 50px;'>⚡ FastFood POS Pro</h1>",
-        unsafe_allow_html=True,
-    )
-    col1, col2, col3 = st.columns([1, 1.5, 1])
-    with col2:
-        with st.container(border=True):
-            st.markdown("### 🔐 Iniciar Sesión")
-            user = st.text_input("Usuario")
-            clave = st.text_input("Contraseña", type="password")
-            submit = st.button(
-                "🚀 INGRESAR AL SISTEMA",
-                type="primary",
-                use_container_width=True,
-            )
-
-            if submit:
-                with get_connection() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute(
-                        "SELECT id, nombre, rol FROM usuarios WHERE usuario=? AND clave=?",
-                        (user.strip(), clave.strip()),
-                    )
-                    res = cursor.fetchone()
-                    if res:
-                        st.session_state.authenticated = True
-                        st.session_state.usuario_actual = res["nombre"]
-                        st.session_state.rol_actual = res["rol"]
-                        st.success(f"Bienvenido {res['nombre']}")
-                        st.rerun()
-                    else:
-                        st.error("Usuario o contraseña incorrectos.")
-
-
-def logout():
-    st.session_state.authenticated = False
-    st.session_state.usuario_actual = None
-    st.session_state.rol_actual = None
-    st.session_state.carrito = []
-    st.rerun()
-
-
-if not st.session_state.authenticated:
-    login()
-    st.stop()
-
-# ---------------------------------------------------------
-# BARRA LATERAL (SIDEBAR)
-# ---------------------------------------------------------
-st.sidebar.markdown("# ⚡ FastFood POS")
-st.sidebar.markdown(
-    f"""
-    <div style="background-color: #1e293b; padding: 15px; border-radius: 10px; border-left: 4px solid #10b981; margin-bottom: 20px;">
-        <span style="color: #94a3b8; font-size: 12px;">USUARIO ACTIVO</span><br>
-        <strong style="color: #f8fafc; font-size: 16px;">👤 {st.session_state.usuario_actual}</strong><br>
-        <span style="background-color: #065f46; color: #34d399; font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: bold; text-transform: uppercase;">{st.session_state.rol_actual}</span>
-    </div>
-""",
-    unsafe_allow_html=True,
-)
-
-if st.sidebar.button("🚪 Cerrar Sesión", use_container_width=True):
-    logout()
-
-
-# ---------------------------------------------------------
-# VISTA: MESERO
-# ---------------------------------------------------------
-def vista_mesero():
-    st.markdown("<h1>🛒 Módulo de Pedidos</h1>", unsafe_allow_html=True)
-
-    tab_nuevo, tab_editar = st.tabs(["📝 Nuevo Pedido", "✏️ Pedidos Activos (Editar / Borrar)"])
-
-    with tab_nuevo:
-        col_menu, col_carrito = st.columns([2.2, 1.2])
-
-        with col_menu:
-            st.subheader("🍔 Catálogo de Productos")
-            with get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT id, nombre, precio, icono, imagen_path FROM productos"
-                )
-                productos = cursor.fetchall()
-
-            if not productos:
-                st.info("No hay productos registrados en el menú.")
-
-            cols = st.columns(3)
-            for idx, prod in enumerate(productos):
-                with cols[idx % 3]:
-                    with st.container(border=True):
-                        img_path = prod["imagen_path"]
-                        if img_path and os.path.exists(img_path):
-                            st.image(img_path, use_container_width=True)
-                        else:
-                            st.markdown(
-                                f"<h1 style='text-align: center; margin: 10px 0;'>{prod['icono']}</h1>",
-                                unsafe_allow_html=True,
-                            )
-
-                        st.markdown(f"**{prod['nombre']}**")
-                        st.markdown(
-                            f"<h3 style='color: #10b981; margin: 0;'>${prod['precio']:.2f}</h3>",
-                            unsafe_allow_html=True,
-                        )
-
-                        if st.button(
-                            "➕ Agregar",
-                            key=f"add_{prod['id']}",
-                            use_container_width=True,
-                        ):
-                            st.session_state.carrito.append(
-                                {
-                                    "nombre": prod["nombre"],
-                                    "precio": prod["precio"],
-                                }
-                            )
-                            st.rerun()
-
-        with col_carrito:
-            with st.container(border=True):
-                st.subheader("📋 Orden del Cliente")
-                cliente = st.text_input(
-                    "Nombre de Cliente / Mesa",
-                    key="cliente_input",
-                    placeholder="Ej. Mesa 4 / Juan",
-                )
-
-                st.markdown("---")
-                total = 0.0
-                if not st.session_state.carrito:
-                    st.caption("El carrito está vacío.")
-                else:
-                    for i, item in enumerate(st.session_state.carrito):
-                        c1, c2, c3 = st.columns([3, 2, 1])
-                        c1.write(item["nombre"])
-                        c2.write(f"${item['precio']:.2f}")
-                        if c3.button("❌", key=f"del_cart_{i}"):
-                            st.session_state.carrito.pop(i)
-                            st.rerun()
-                        total += item["precio"]
-
-                st.markdown("---")
-                st.markdown(
-                    f"<div style='text-align: right;'><span style='color: #94a3b8;'>Total a Pagar:</span><h2 style='color: #10b981; margin:0;'>${total:.2f}</h2></div>",
-                    unsafe_allow_html=True,
-                )
-                st.write("")
-
-                if st.button(
-                    "🚀 ENVIAR A COCINA Y CAJA",
-                    type="primary",
-                    use_container_width=True,
-                ):
-                    if not cliente.strip():
-                        st.warning("Escribe el nombre del cliente o mesa.")
-                    elif not st.session_state.carrito:
-                        st.warning("Selecciona productos del menú.")
-                    else:
-                        fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        items_json = json.dumps(st.session_state.carrito)
-                        with get_connection() as conn:
-                            cursor = conn.cursor()
-                            cursor.execute(
-                                "INSERT INTO pedidos (cliente, items, total, mesero, fecha_hora) VALUES (?, ?, ?, ?, ?)",
-                                (
-                                    cliente,
-                                    items_json,
-                                    total,
-                                    st.session_state.usuario_actual,
-                                    fecha_actual,
-                                ),
-                            )
-                            conn.commit()
-                        st.session_state.carrito = []
-                        st.success("¡Orden enviada!")
-                        st.rerun()
-
-    with tab_editar:
-        st.subheader("🛠️ Administrar Pedidos en Curso")
-        
-        with get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT id, cliente, items, total, estado, mesero, fecha_hora FROM pedidos WHERE estado != 'cobrado' AND estado != 'anulado' ORDER BY id DESC"
-            )
-            pedidos_activos = cursor.fetchall()
-
-        if not pedidos_activos:
-            st.info("No hay pedidos activos para modificar en este momento.")
+        if res:
+            self.user_id_actual = res[0]
+            self.usuario_actual = res[1]
+            self.rol_actual = res[2]
+            self.construir_interfaz_principal()
         else:
-            for p in pedidos_activos:
-                with st.container(border=True):
-                    col_p1, col_p2, col_p3 = st.columns([2, 2, 1.5])
-                    
-                    with col_p1:
-                        st.markdown(f"### Orden #{p['id']} - <span style='color:#38bdf8;'>{p['cliente']}</span>", unsafe_allow_html=True)
-                        st.caption(f"Atendido por: {p['mesero']} | 🕒 {p['fecha_hora']}")
-                        
-                        if p["estado"] == "preparado":
-                            st.markdown("<span class='badge-preparado'>¡LISTO PARA ENTREGAR!</span>", unsafe_allow_html=True)
-                        else:
-                            st.markdown("<span class='badge-pendiente'>En cocina...</span>", unsafe_allow_html=True)
+            messagebox.showerror("Error", "Usuario o contraseña incorrectos.")
 
-                    with col_p2:
-                        st.markdown("**Productos:**")
-                        items = json.loads(p["items"])
-                        for it in items:
-                            st.write(f"• {it['nombre']} (${it['precio']:.2f})")
-                        st.markdown(f"<h3 style='color:#10b981; margin:0;'>Total: ${p['total']:.2f}</h3>", unsafe_allow_html=True)
+    def construir_interfaz_principal(self):
+        for widget in self.winfo_children():
+            widget.destroy()
 
-                    with col_p3:
-                        st.write("")
-                        with st.popover("✏️ Editar Pedido", use_container_width=True):
-                            st.markdown(f"#### Modificar Orden #{p['id']}")
-                            nuevo_cliente = st.text_input("Cliente/Mesa", value=p["cliente"], key=f"edit_cli_{p['id']}")
-                            
-                            st.markdown("---")
-                            st.markdown("**Eliminar productos:**")
-                            for item_idx, it in enumerate(items):
-                                col_i1, col_i2 = st.columns([3, 1])
-                                col_i1.write(f"• {it['nombre']} (${it['precio']:.2f})")
-                                if col_i2.button("❌", key=f"del_item_{p['id']}_{item_idx}"):
-                                    items.pop(item_idx)
-                                    nuevo_total_rem = sum(it_rem["precio"] for it_rem in items)
-                                    with get_connection() as conn_rem:
-                                        c_rem = conn_rem.cursor()
-                                        c_rem.execute(
-                                            "UPDATE pedidos SET items=?, total=? WHERE id=?",
-                                            (json.dumps(items), nuevo_total_rem, p["id"])
-                                        )
-                                        conn_rem.commit()
-                                    st.success("Producto eliminado")
-                                    st.rerun()
+        header = ctk.CTkFrame(self, height=60, corner_radius=0, fg_color="#1e293b")
+        header.pack(fill="x", side="top")
 
-                            st.markdown("---")
-                            st.markdown("**Añadir nuevo producto:**")
-                            with get_connection() as conn_prod:
-                                c_prod = conn_prod.cursor()
-                                c_prod.execute("SELECT nombre, precio FROM productos")
-                                prods_menu = c_prod.fetchall()
-                            
-                            if prods_menu:
-                                prod_select = st.selectbox(
-                                    "Añadir Producto:",
-                                    [f"{pm['nombre']} - ${pm['precio']:.2f}" for pm in prods_menu],
-                                    key=f"select_p_{p['id']}"
-                                )
-                                
-                                if st.button("➕ Añadir este producto", key=f"btn_add_p_{p['id']}"):
-                                    nombre_p = prod_select.split(" - $")[0]
-                                    precio_p = float(prod_select.split(" - $")[1])
-                                    
-                                    items.append({"nombre": nombre_p, "precio": precio_p})
-                                    nuevo_total = sum(it_add["precio"] for it_add in items)
-                                    
-                                    with get_connection() as conn_up:
-                                        c_up = conn_up.cursor()
-                                        c_up.execute(
-                                            "UPDATE pedidos SET cliente=?, items=?, total=? WHERE id=?",
-                                            (nuevo_cliente, json.dumps(items), nuevo_total, p["id"])
-                                        )
-                                        conn_up.commit()
-                                    st.success(f"¡Añadido {nombre_p}!")
-                                    st.rerun()
+        ctk.CTkLabel(
+            header,
+            text="⚡ FastFood POS Pro",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color="#10b981",
+        ).pack(side="left", padx=20)
 
-                            if st.button("💾 Guardar Cambios Nombre", key=f"save_name_{p['id']}"):
-                                with get_connection() as conn_up_name:
-                                    c_un = conn_up_name.cursor()
-                                    c_un.execute(
-                                        "UPDATE pedidos SET cliente=? WHERE id=?",
-                                        (nuevo_cliente, p["id"])
-                                    )
-                                    conn_up_name.commit()
-                                st.success("¡Mesa/Cliente actualizada!")
-                                st.rerun()
-
-                        if st.button("🗑️ Anular / Eliminar", key=f"del_ped_{p['id']}", use_container_width=True):
-                            with get_connection() as conn_del:
-                                c_del = conn_del.cursor()
-                                c_del.execute("UPDATE pedidos SET estado='anulado' WHERE id=?", (p["id"],))
-                                conn_del.commit()
-                            st.warning(f"Orden #{p['id']} Anulada.")
-                            st.rerun()
-
-
-# ---------------------------------------------------------
-# VISTA: COCINA
-# ---------------------------------------------------------
-def vista_cocina():
-    st.markdown("<h1>🔥 Monitor de Cocina</h1>", unsafe_allow_html=True)
-    if st.button("🔄 Actualizar Comandas"):
-        st.rerun()
-
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT id, cliente, items, mesero, fecha_hora FROM pedidos WHERE estado = 'pendiente' ORDER BY id ASC"
+        btn_logout = ctk.CTkButton(
+            header,
+            text="Cerrar Sesión ➔",
+            width=110,
+            height=32,
+            fg_color="#ef4444",
+            hover_color="#dc2626",
+            command=self.mostrar_login,
         )
-        pedidos = cursor.fetchall()
+        btn_logout.pack(side="right", padx=20)
 
-    if not pedidos:
-        st.info("Sin comandas pendientes por cocinar 🎉")
-        return
+        ctk.CTkLabel(
+            header,
+            text=f"👤 {self.usuario_actual} ({self.rol_actual.upper()})",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color="white",
+        ).pack(side="right", padx=15)
 
-    cols = st.columns(3)
-    for idx, p in enumerate(pedidos):
-        with cols[idx % 3]:
-            with st.container(border=True):
-                st.markdown(
-                    f"<h3 style='color: #f97316; margin:0;'>Orden #{p['id']}</h3>",
-                    unsafe_allow_html=True,
-                )
-                st.markdown(f"**Cliente:** {p['cliente']}")
-                st.caption(
-                    f"Atendido por: {p['mesero']} | 🕒 {p['fecha_hora'][11:16] if p['fecha_hora'] else ''}"
-                )
-                st.markdown("---")
+        self.main_container = ctk.CTkFrame(self, fg_color="#0f172a")
+        self.main_container.pack(fill="both", expand=True, padx=15, pady=15)
 
-                items = json.loads(p["items"])
-                for it in items:
-                    st.markdown(
-                        f"<span style='color: #f8fafc;'>• {it['nombre']}</span>",
-                        unsafe_allow_html=True,
+        if self.rol_actual == "mesero":
+            self.vista_mesero()
+        elif self.rol_actual == "cocina":
+            self.vista_cocina()
+        elif self.rol_actual == "caja":
+            self.vista_caja()
+        elif self.rol_actual == "multitarea":
+            self.vista_multitarea()
+        elif self.rol_actual == "admin":
+            self.vista_admin_con_pestanas()
+
+    def vista_multitarea(self):
+        tabview = ctk.CTkTabview(self.main_container)
+        tabview.pack(fill="both", expand=True)
+
+        tabview.add("📝 Tomar Pedido")
+        tabview.add("💰 Cobros y Caja")
+        tabview.add("📋 Lista de Pedidos")
+
+        f_pedido = ctk.CTkFrame(tabview.tab("📝 Tomar Pedido"), fg_color="transparent")
+        f_pedido.pack(fill="both", expand=True)
+        self.construir_modulo_pedido(f_pedido, es_multitarea=True)
+
+        self.f_caja_multi = ctk.CTkFrame(tabview.tab("💰 Cobros y Caja"), fg_color="transparent")
+        self.f_caja_multi.pack(fill="both", expand=True)
+        self.construir_modulo_caja(self.f_caja_multi)
+
+        self.f_lista_multi = ctk.CTkFrame(tabview.tab("📋 Lista de Pedidos"), fg_color="transparent")
+        self.f_lista_multi.pack(fill="both", expand=True)
+        self.construir_modulo_lista_pedidos(self.f_lista_multi)
+
+    def vista_admin_con_pestanas(self):
+        def al_cambiar_pestana(pestana_seleccionada):
+            if pestana_seleccionada == "📊 Reportes":
+                self.actualizar_reportes()
+            elif pestana_seleccionada == "👥 Usuarios & Personal":
+                self.actualizar_tabla_usuarios()
+            elif pestana_seleccionada == "🍔 Gestión de Menú":
+                self.actualizar_secciones_combo()
+                self.actualizar_lista_menu_admin()
+            elif pestana_seleccionada == "🥫 Salsas & Términos":
+                self.actualizar_lista_salsas_terminos()
+
+        self.tabview_admin = ctk.CTkTabview(self.main_container, command=al_cambiar_pestana)
+        self.tabview_admin.pack(fill="both", expand=True)
+
+        self.tabview_admin.add("📊 Reportes")
+        self.tabview_admin.add("👥 Usuarios & Personal")
+        self.tabview_admin.add("🍔 Gestión de Menú")
+        self.tabview_admin.add("🥫 Salsas & Términos")
+        self.tabview_admin.add("📝 Pedido Especial/Libre")
+        self.tabview_admin.add("💳 Formas de Pago")
+
+        self.scroll_reportes = ctk.CTkScrollableFrame(self.tabview_admin.tab("📊 Reportes"), fg_color="transparent")
+        self.scroll_reportes.pack(fill="both", expand=True)
+
+        self.container_usuarios = ctk.CTkFrame(self.tabview_admin.tab("👥 Usuarios & Personal"), fg_color="transparent")
+        self.container_usuarios.pack(fill="both", expand=True)
+
+        self.container_menu_admin = ctk.CTkFrame(self.tabview_admin.tab("🍔 Gestión de Menú"), fg_color="transparent")
+        self.container_menu_admin.pack(fill="both", expand=True)
+
+        self.container_salsas_admin = ctk.CTkFrame(self.tabview_admin.tab("🥫 Salsas & Términos"), fg_color="transparent")
+        self.container_salsas_admin.pack(fill="both", expand=True)
+
+        f_pedido_admin = ctk.CTkFrame(self.tabview_admin.tab("📝 Pedido Especial/Libre"), fg_color="transparent")
+        f_pedido_admin.pack(fill="both", expand=True)
+        self.construir_modulo_pedido(f_pedido_admin, es_multitarea=True)
+
+        self.container_pagos_admin = ctk.CTkFrame(self.tabview_admin.tab("💳 Formas de Pago"), fg_color="transparent")
+        self.container_pagos_admin.pack(fill="both", expand=True)
+
+        self.vista_reportes()
+        self.vista_gestion_usuarios()
+        self.vista_gestion_menu()
+        self.vista_gestion_salsas_terminos()
+        self.vista_gestion_metodos_pago()
+
+    def vista_gestion_salsas_terminos(self):
+        for w in self.container_salsas_admin.winfo_children():
+            w.destroy()
+
+        f_left = ctk.CTkFrame(self.container_salsas_admin, width=350)
+        f_left.pack(side="left", fill="y", padx=10, pady=10)
+
+        ctk.CTkLabel(f_left, text="➕ Agregar Salsa o Término", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=15, padx=15)
+
+        self.entry_nueva_salsa = ctk.CTkEntry(f_left, placeholder_text="Ej: BBQ, Picante, Bien Cocido", height=40)
+        self.entry_nueva_salsa.pack(fill="x", padx=15, pady=10)
+
+        btn_guardar_salsa = ctk.CTkButton(
+            f_left, text="💾 Guardar Opción", fg_color="#10b981", hover_color="#059669", command=self.guardar_salsa_termino
+        )
+        btn_guardar_salsa.pack(fill="x", padx=15, pady=10)
+
+        f_right = ctk.CTkFrame(self.container_salsas_admin)
+        f_right.pack(side="right", fill="both", expand=True, padx=10, pady=10)
+
+        ctk.CTkLabel(f_right, text="📋 Salsas y Términos de Preparación Registrados", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=15, padx=15)
+
+        self.scroll_salsas = ctk.CTkScrollableFrame(f_right, fg_color="transparent")
+        self.scroll_salsas.pack(fill="both", expand=True, padx=15, pady=10)
+
+        self.actualizar_lista_salsas_terminos()
+
+    def guardar_salsa_termino(self):
+        nombre = self.entry_nueva_salsa.get().strip()
+        if not nombre:
+            return messagebox.showwarning("Atención", "Ingresa el nombre de la salsa o término.")
+        try:
+            self.cursor.execute("INSERT INTO salsas_terminos (nombre) VALUES (?)", (nombre,))
+            self.conn.commit()
+            self.entry_nueva_salsa.delete(0, "end")
+            self.actualizar_lista_salsas_terminos()
+            messagebox.showinfo("Éxito", f"Opción '{nombre}' agregada correctamente.")
+        except sqlite3.IntegrityError:
+            messagebox.showerror("Error", "Esta salsa o término ya está registrado.")
+
+    def actualizar_lista_salsas_terminos(self):
+        for w in self.scroll_salsas.winfo_children():
+            w.destroy()
+
+        self.cursor.execute("SELECT id, nombre FROM salsas_terminos")
+        for s_id, nom in self.cursor.fetchall():
+            row = ctk.CTkFrame(self.scroll_salsas, fg_color="#1e293b", height=40)
+            row.pack(fill="x", pady=3)
+
+            ctk.CTkLabel(row, text=f"🥫/🔥  {nom}", font=ctk.CTkFont(weight="bold")).pack(side="left", padx=15)
+
+            btn_del = ctk.CTkButton(
+                row, text="🗑 Eliminar", width=80, fg_color="#ef4444", hover_color="#dc2626", command=lambda i=s_id: self.eliminar_salsa_termino(i)
+            )
+            btn_del.pack(side="right", padx=10)
+
+    def eliminar_salsa_termino(self, s_id):
+        if messagebox.askyesno("Confirmar Eliminación", "¿Seguro que deseas eliminar esta opción de salsa o término?"):
+            self.cursor.execute("DELETE FROM salsas_terminos WHERE id = ?", (s_id,))
+            self.conn.commit()
+            self.actualizar_lista_salsas_terminos()
+
+    def vista_reportes(self):
+        for w in self.scroll_reportes.winfo_children():
+            w.destroy()
+
+        filter_frame = ctk.CTkFrame(self.scroll_reportes, fg_color="#1e293b")
+        filter_frame.pack(fill="x", pady=(0, 15), padx=5)
+
+        ctk.CTkLabel(filter_frame, text="📅 Rango Rápido:", font=ctk.CTkFont(size=13, weight="bold")).pack(side="left", padx=(15, 5), pady=10)
+
+        self.combo_filtro_fecha = ctk.CTkOptionMenu(
+            filter_frame,
+            values=["Hoy", "Ayer", "Últimos 7 días", "Todos los Tiempos", "Día Específico"],
+            command=self.al_cambiar_opcion_filtro,
+            width=140
+        )
+        self.combo_filtro_fecha.pack(side="left", padx=5, pady=10)
+
+        ctk.CTkLabel(filter_frame, text="📆 Día Específico (AAAA-MM-DD):", font=ctk.CTkFont(size=13, weight="bold")).pack(side="left", padx=(20, 5), pady=10)
+
+        hoy_str = datetime.now().strftime("%Y-%m-%d")
+        self.entry_fecha_especifica = ctk.CTkEntry(filter_frame, placeholder_text="YYYY-MM-DD", width=120)
+        self.entry_fecha_especifica.insert(0, hoy_str)
+        self.entry_fecha_especifica.pack(side="left", padx=5, pady=10)
+
+        btn_filtrar_fecha = ctk.CTkButton(
+            filter_frame,
+            text="🔍 Filtrar Fecha",
+            width=110,
+            fg_color="#0284c7",
+            hover_color="#0369a1",
+            command=self.filtrar_por_fecha_manual
+        )
+        btn_filtrar_fecha.pack(side="left", padx=10, pady=10)
+
+        self.kpi_frame = ctk.CTkFrame(self.scroll_reportes, fg_color="transparent")
+        self.kpi_frame.pack(fill="x", pady=(0, 15))
+
+        ctk.CTkLabel(
+            self.scroll_reportes, text="💳 Desglose por Forma de Pago", font=ctk.CTkFont(size=16, weight="bold")
+        ).pack(anchor="w", pady=(10, 5))
+
+        self.frame_pagos_desglose = ctk.CTkFrame(self.scroll_reportes, fg_color="#1e293b")
+        self.frame_pagos_desglose.pack(fill="x", pady=(0, 20))
+
+        ctk.CTkLabel(
+            self.scroll_reportes, text="📋 Historial Detallado de Órdenes y Usuarios", font=ctk.CTkFont(size=16, weight="bold")
+        ).pack(anchor="w", pady=(10, 5))
+
+        self.frame_tabla_pedidos = ctk.CTkFrame(self.scroll_reportes, fg_color="#1e293b")
+        self.frame_tabla_pedidos.pack(fill="both", expand=True)
+
+        self.actualizar_reportes()
+
+    def al_cambiar_opcion_filtro(self, opcion):
+        if opcion != "Día Específico":
+            self.actualizar_reportes()
+
+    def filtrar_por_fecha_manual(self):
+        self.combo_filtro_fecha.set("Día Específico")
+        self.actualizar_reportes()
+
+    def actualizar_reportes(self):
+        opcion = self.combo_filtro_fecha.get()
+        hoy = datetime.now()
+        filtro_sql = ""
+
+        if opcion == "Hoy":
+            filtro_sql = f"WHERE fecha_hora LIKE '{hoy.strftime('%Y-%m-%d')}%'"
+        elif opcion == "Ayer":
+            filtro_sql = f"WHERE fecha_hora LIKE '{(hoy - timedelta(days=1)).strftime('%Y-%m-%d')}%'"
+        elif opcion == "Últimos 7 días":
+            filtro_sql = f"WHERE fecha_hora >= '{(hoy - timedelta(days=7)).strftime('%Y-%m-%d')}'"
+        elif opcion == "Día Específico":
+            fecha_manual = self.entry_fecha_especifica.get().strip()
+            if fecha_manual:
+                filtro_sql = f"WHERE fecha_hora LIKE '{fecha_manual}%'"
+
+        for w in self.kpi_frame.winfo_children():
+            w.destroy()
+
+        and_cobrado = "AND estado='cobrado'" if filtro_sql else "WHERE estado='cobrado'"
+        self.cursor.execute(f"SELECT SUM(total) FROM pedidos {filtro_sql} {and_cobrado}")
+        total_cobrado = self.cursor.fetchone()[0] or 0.0
+
+        card_total = ctk.CTkFrame(self.kpi_frame, fg_color="#1e293b", border_width=1, border_color="#10b981")
+        card_total.pack(side="left", fill="both", expand=True, padx=5)
+        ctk.CTkLabel(card_total, text="💵 Ventas Totales Cobradas", font=ctk.CTkFont(size=13)).pack(pady=(10, 2))
+        ctk.CTkLabel(card_total, text=f"${total_cobrado:.2f}", font=ctk.CTkFont(size=22, weight="bold"), text_color="#10b981").pack(pady=(0, 10))
+
+        self.cursor.execute(f"SELECT COUNT(*) FROM pedidos {filtro_sql}")
+        total_pedidos = self.cursor.fetchone()[0] or 0
+        card_pedidos = ctk.CTkFrame(self.kpi_frame, fg_color="#1e293b", border_width=1, border_color="#38bdf8")
+        card_pedidos.pack(side="left", fill="both", expand=True, padx=5)
+        ctk.CTkLabel(card_pedidos, text="📦 Cantidad de Pedidos", font=ctk.CTkFont(size=13)).pack(pady=(10, 2))
+        ctk.CTkLabel(card_pedidos, text=str(total_pedidos), font=ctk.CTkFont(size=22, weight="bold"), text_color="#38bdf8").pack(pady=(0, 10))
+
+        for w in self.frame_pagos_desglose.winfo_children():
+            w.destroy()
+
+        self.cursor.execute("SELECT nombre FROM metodos_pago")
+        metodos = [m[0] for m in self.cursor.fetchall()]
+
+        grid_pagos = ctk.CTkFrame(self.frame_pagos_desglose, fg_color="transparent")
+        grid_pagos.pack(fill="x", padx=10, pady=10)
+
+        for idx, mp in enumerate(metodos):
+            cond_mp = f"{filtro_sql} AND estado='cobrado' AND metodo_pago='{mp}'" if filtro_sql else f"WHERE estado='cobrado' AND metodo_pago='{mp}'"
+            self.cursor.execute(f"SELECT SUM(total), COUNT(*) FROM pedidos {cond_mp}")
+            res_mp = self.cursor.fetchone()
+            subtotal_mp = res_mp[0] or 0.0
+            cant_mp = res_mp[1] or 0
+
+            col = idx % 3
+            row = idx // 3
+
+            box = ctk.CTkFrame(grid_pagos, fg_color="#0f172a", corner_radius=8)
+            box.grid(row=row, column=col, padx=5, pady=5, sticky="ew")
+            grid_pagos.grid_columnconfigure(col, weight=1)
+
+            ctk.CTkLabel(box, text=mp, font=ctk.CTkFont(size=12, weight="bold"), text_color="#38bdf8").pack(anchor="w", padx=10, pady=(8, 2))
+            ctk.CTkLabel(box, text=f"${subtotal_mp:.2f}  ({cant_mp} transacc.)", font=ctk.CTkFont(size=14, weight="bold"), text_color="#10b981").pack(anchor="w", padx=10, pady=(0, 8))
+
+        for w in self.frame_tabla_pedidos.winfo_children():
+            w.destroy()
+
+        header_row = ctk.CTkFrame(self.frame_tabla_pedidos, fg_color="#334155")
+        header_row.pack(fill="x", padx=5, pady=5)
+
+        ctk.CTkLabel(header_row, text="ID", width=40, font=ctk.CTkFont(weight="bold"), anchor="w").pack(side="left", padx=5)
+        ctk.CTkLabel(header_row, text="Fecha y Hora", width=150, font=ctk.CTkFont(weight="bold"), anchor="w").pack(side="left", padx=5)
+        ctk.CTkLabel(header_row, text="Tomado por (Usuario)", width=130, font=ctk.CTkFont(weight="bold"), anchor="w").pack(side="left", padx=5)
+        ctk.CTkLabel(header_row, text="Cliente/Mesa", width=110, font=ctk.CTkFont(weight="bold"), anchor="w").pack(side="left", padx=5)
+        ctk.CTkLabel(header_row, text="Forma de Pago", width=140, font=ctk.CTkFont(weight="bold"), anchor="w").pack(side="left", padx=5)
+        ctk.CTkLabel(header_row, text="Total", width=70, font=ctk.CTkFont(weight="bold"), anchor="w").pack(side="left", padx=5)
+        ctk.CTkLabel(header_row, text="Estado", width=90, font=ctk.CTkFont(weight="bold"), anchor="w").pack(side="left", padx=5)
+
+        self.cursor.execute(f"SELECT id, cliente, items, total, estado, mesero, metodo_pago, fecha_hora FROM pedidos {filtro_sql} ORDER BY id DESC")
+        for p_id, cliente, items_raw, total, estado, mesero, mp, fh in self.cursor.fetchall():
+            f_row = ctk.CTkFrame(self.frame_tabla_pedidos, fg_color="#0f172a")
+            f_row.pack(fill="x", padx=5, pady=3)
+
+            fecha_f = fh[:16] if len(fh) >= 16 else (fh if fh else "N/A")
+
+            ctk.CTkLabel(f_row, text=f"#{p_id}", width=40, anchor="w").pack(side="left", padx=5)
+            ctk.CTkLabel(f_row, text=fecha_f, width=150, font=ctk.CTkFont(size=11), text_color="gray70", anchor="w").pack(side="left", padx=5)
+            ctk.CTkLabel(f_row, text=mesero, width=130, font=ctk.CTkFont(weight="bold"), text_color="#10b981", anchor="w").pack(side="left", padx=5)
+            ctk.CTkLabel(f_row, text=cliente, width=110, anchor="w").pack(side="left", padx=5)
+            ctk.CTkLabel(f_row, text=mp if mp else "Efectivo", width=140, text_color="#38bdf8", anchor="w").pack(side="left", padx=5)
+            ctk.CTkLabel(f_row, text=f"${total:.2f}", width=70, font=ctk.CTkFont(weight="bold"), anchor="w").pack(side="left", padx=5)
+
+            color_est = "#10b981" if estado == "cobrado" else "#38bdf8"
+            if estado == "anulado":
+                color_est = "#ef4444"
+
+            ctk.CTkLabel(f_row, text=estado.upper(), width=90, text_color=color_est, font=ctk.CTkFont(weight="bold"), anchor="w").pack(side="left", padx=5)
+
+    def vista_mesero(self):
+        self.construir_modulo_pedido(self.main_container)
+
+    def construir_modulo_pedido(self, parent_frame, es_multitarea=False):
+        left_p = ctk.CTkFrame(parent_frame, corner_radius=12)
+        left_p.pack(side="left", fill="both", expand=True, padx=(0, 10))
+
+        top_bar = ctk.CTkFrame(left_p, fg_color="transparent")
+        top_bar.pack(fill="x", padx=15, pady=10)
+
+        ctk.CTkLabel(top_bar, text="📁 Secciones:", font=ctk.CTkFont(size=14, weight="bold")).pack(side="left", padx=(0, 10))
+
+        self.cursor.execute("SELECT nombre FROM categorias")
+        cats = ["Todas"] + [c[0] for c in self.cursor.fetchall()]
+
+        self.combo_cat_filtro = ctk.CTkOptionMenu(
+            top_bar,
+            values=cats,
+            command=lambda cat: self.cargar_tarjetas_productos(cat),
+        )
+        self.combo_cat_filtro.pack(side="left")
+
+        self.scroll_menu = ctk.CTkScrollableFrame(left_p, fg_color="transparent")
+        self.scroll_menu.pack(fill="both", expand=True, padx=10, pady=10)
+
+        right_p = ctk.CTkFrame(parent_frame, width=380, corner_radius=12)
+        right_p.pack(side="right", fill="y", padx=(10, 0))
+
+        ctk.CTkLabel(right_p, text="Orden del Cliente", font=ctk.CTkFont(size=16, weight="bold")).pack(anchor="w", padx=15, pady=10)
+
+        self.entry_cliente = ctk.CTkEntry(right_p, placeholder_text="Cliente / Mesa", height=40, corner_radius=8)
+        self.entry_cliente.pack(fill="x", padx=15, pady=(0, 10))
+
+        porciones_frame = ctk.CTkFrame(right_p, fg_color="#1e293b", corner_radius=8)
+        porciones_frame.pack(fill="x", padx=15, pady=(0, 10))
+
+        ctk.CTkLabel(
+            porciones_frame, text="🍟 Porciones Rápidas:", font=ctk.CTkFont(size=12, weight="bold"), text_color="#38bdf8"
+        ).pack(anchor="w", padx=10, pady=(5, 3))
+
+        btn_porciones_grid = ctk.CTkFrame(porciones_frame, fg_color="transparent")
+        btn_porciones_grid.pack(fill="x", padx=5, pady=(0, 5))
+
+        self.cursor.execute(
+            "SELECT nombre, precio, requiere_salsa FROM productos WHERE categoria LIKE '%Porción%' OR categoria LIKE '%Acompañante%'"
+        )
+        porciones = self.cursor.fetchall()
+        if not porciones:
+            porciones = [("Papas", 1.50, 0), ("Arroz", 1.00, 0), ("Ensalada", 1.25, 0)]
+
+        for idx, tuple_p in enumerate(porciones[:4]):
+            p_nom, p_pre = tuple_p[0], tuple_p[1]
+            p_req = tuple_p[2] if len(tuple_p) > 2 else 0
+
+            col = idx % 2
+            row = idx // 2
+            btn_porc = ctk.CTkButton(
+                btn_porciones_grid,
+                text=f"+ {p_nom} (${p_pre:.2f})",
+                font=ctk.CTkFont(size=11),
+                fg_color="#334155",
+                hover_color="#0284c7",
+                height=26,
+                command=lambda n=p_nom, p=p_pre, req=p_req: self.procesar_agregar_producto(n, p, req),
+            )
+            btn_porc.grid(row=row, column=col, padx=3, pady=3, sticky="ew")
+            btn_porciones_grid.grid_columnconfigure(col, weight=1)
+
+        btn_item_libre = ctk.CTkButton(
+            right_p,
+            text="✨ + Item Especial / Pedido Libre",
+            fg_color="#8b5cf6",
+            hover_color="#7c3aed",
+            font=ctk.CTkFont(weight="bold"),
+            command=self.dialogo_item_libre,
+        )
+        btn_item_libre.pack(fill="x", padx=15, pady=(0, 10))
+
+        self.frame_carrito_items = ctk.CTkScrollableFrame(right_p, height=220, fg_color="#0f172a")
+        self.frame_carrito_items.pack(fill="both", expand=True, padx=15, pady=5)
+
+        self.lbl_total_mesero = ctk.CTkLabel(
+            right_p, text="TOTAL: $0.00", font=ctk.CTkFont(size=18, weight="bold"), text_color="#10b981"
+        )
+        self.lbl_total_mesero.pack(anchor="e", padx=15, pady=10)
+
+        btn_enviar = ctk.CTkButton(
+            right_p,
+            text="🚀 REGISTRAR PEDIDO",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="#10b981",
+            hover_color="#059669",
+            height=45,
+            corner_radius=10,
+            command=self.enviar_pedido,
+        )
+        btn_enviar.pack(fill="x", padx=15, pady=15)
+
+        self.cargar_tarjetas_productos("Todas")
+
+    def procesar_agregar_producto(self, nombre, precio, requiere_salsa):
+        if requiere_salsa == 1:
+            self.solicitar_opciones_producto(nombre, precio)
+        else:
+            self.agregar_al_carrito(nombre, precio)
+
+    def solicitar_opciones_producto(self, nombre, precio):
+        self.cursor.execute("SELECT nombre FROM salsas_terminos")
+        salsas_bd = [s[0] for s in self.cursor.fetchall()]
+        if not salsas_bd:
+            salsas_bd = ["BBQ", "Picante", "Bien Cocido", "Sin Salsa / Al Natural"]
+
+        ventana_salsa = ctk.CTkToplevel(self)
+        ventana_salsa.title(f"Salsa / Término - {nombre}")
+        ventana_salsa.geometry("420x330")
+        ventana_salsa.grab_set()
+
+        ctk.CTkLabel(
+            ventana_salsa,
+            text=f"🍗 Opciones para:\n{nombre}",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color="#38bdf8",
+        ).pack(pady=(15, 10))
+
+        ctk.CTkLabel(
+            ventana_salsa, text="Selecciona Salsa o Término:", font=ctk.CTkFont(size=12, weight="bold")
+        ).pack(anchor="w", padx=30, pady=(5, 2))
+
+        combo_salsa = ctk.CTkOptionMenu(ventana_salsa, values=salsas_bd, width=360, height=35)
+        combo_salsa.pack(pady=5)
+
+        ctk.CTkLabel(
+            ventana_salsa, text="Nota Adicional (Opcional):", font=ctk.CTkFont(size=12, weight="bold")
+        ).pack(anchor="w", padx=30, pady=(10, 2))
+
+        entry_nota = ctk.CTkEntry(
+            ventana_salsa, placeholder_text="Ej: Salsa aparte, bien crujiente, etc.", width=360, height=35
+        )
+        entry_nota.pack(pady=5)
+
+        def agregar():
+            salsa_sel = combo_salsa.get()
+            nota_extra = entry_nota.get().strip()
+
+            detalle_final = f"{nombre} [{salsa_sel}]"
+            if nota_extra:
+                detalle_final += f" ({nota_extra})"
+
+            self.agregar_al_carrito(detalle_final, precio)
+            ventana_salsa.destroy()
+
+        btn_confirmar = ctk.CTkButton(
+            ventana_salsa,
+            text="✔ Agregar al Carrito",
+            fg_color="#10b981",
+            hover_color="#059669",
+            font=ctk.CTkFont(weight="bold"),
+            height=40,
+            command=agregar,
+        )
+        btn_confirmar.pack(pady=20)
+
+    def dialogo_item_libre(self):
+        dialogo = ctk.CTkToplevel(self)
+        dialogo.title("Agregar Pedido Especial / Libre")
+        dialogo.geometry("400x260")
+        dialogo.grab_set()
+
+        ctk.CTkLabel(dialogo, text="📝 Detalle del Pedido Libre", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=15)
+
+        entry_desc = ctk.CTkEntry(dialogo, placeholder_text="Descripción del Pedido Especial", width=320, height=40)
+        entry_desc.pack(pady=5)
+
+        entry_precio = ctk.CTkEntry(dialogo, placeholder_text="Precio Final ($)", width=320, height=40)
+        entry_precio.pack(pady=10)
+
+        def agregar():
+            desc = entry_desc.get().strip()
+            p_str = entry_precio.get().strip()
+            if not desc or not p_str:
+                return messagebox.showwarning("Atención", "Ingresa la descripción y el precio.")
+            try:
+                precio = float(p_str)
+                self.agregar_al_carrito(f"⭐ {desc}", precio)
+                dialogo.destroy()
+            except ValueError:
+                messagebox.showerror("Error", "El precio ingresado no es válido.")
+
+        ctk.CTkButton(dialogo, text="Agregar a la Cuenta", fg_color="#8b5cf6", command=agregar).pack(pady=10)
+
+    def cargar_tarjetas_productos(self, categoria="Todas"):
+        for w in self.scroll_menu.winfo_children():
+            w.destroy()
+
+        if categoria == "Todas":
+            self.cursor.execute("SELECT nombre, precio, icono, imagen_path, requiere_salsa FROM productos")
+        else:
+            self.cursor.execute(
+                "SELECT nombre, precio, icono, imagen_path, requiere_salsa FROM productos WHERE categoria=?",
+                (categoria,),
+            )
+
+        prods = self.cursor.fetchall()
+
+        for i, (nombre, precio, icono, img_path, req_salsa) in enumerate(prods):
+            row = i // 3
+            col = i % 3
+
+            card = ctk.CTkFrame(self.scroll_menu, corner_radius=10, fg_color="#1e293b")
+            card.grid(row=row, column=col, padx=8, pady=8, sticky="nsew")
+
+            if img_path and os.path.exists(img_path):
+                try:
+                    my_img = ctk.CTkImage(
+                        light_image=Image.open(img_path),
+                        dark_image=Image.open(img_path),
+                        size=(90, 70),
                     )
+                    ctk.CTkLabel(card, image=my_img, text="").pack(pady=(10, 5))
+                except:
+                    ctk.CTkLabel(card, text=icono, font=ctk.CTkFont(size=35)).pack(pady=(12, 2))
+            else:
+                ctk.CTkLabel(card, text=icono, font=ctk.CTkFont(size=35)).pack(pady=(12, 2))
 
-                st.markdown("---")
-                if st.button(
-                    "✔ MARCAR LISTO",
-                    key=f"cocina_{p['id']}",
-                    use_container_width=True,
-                    type="primary",
-                ):
-                    with get_connection() as conn_up:
-                        cursor_up = conn_up.cursor()
-                        cursor_up.execute(
-                            "UPDATE pedidos SET estado = 'preparado' WHERE id = ?",
-                            (p["id"],),
-                        )
-                        conn_up.commit()
-                    st.rerun()
+            ctk.CTkLabel(card, text=nombre, font=ctk.CTkFont(size=13, weight="bold")).pack()
+            ctk.CTkLabel(
+                card, text=f"${precio:.2f}", font=ctk.CTkFont(size=13), text_color="#10b981"
+            ).pack(pady=(0, 10))
 
+            btn_add = ctk.CTkButton(
+                card,
+                text="Agregar +",
+                width=120,
+                height=28,
+                fg_color="#334155",
+                hover_color="#10b981",
+                command=lambda n=nombre, p=precio, req=req_salsa: self.procesar_agregar_producto(n, p, req),
+            )
+            btn_add.pack(pady=(0, 12))
 
-# ---------------------------------------------------------
-# VISTA: CAJA
-# ---------------------------------------------------------
-def vista_caja():
-    st.markdown("<h1>💰 Control de Caja y Pagos</h1>", unsafe_allow_html=True)
+    def agregar_al_carrito(self, nombre, precio):
+        self.carrito.append({"nombre": nombre, "precio": precio})
+        self.actualizar_carrito_ui()
 
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT id, monto_apertura FROM cajas WHERE cajero=? AND estado='abierta'",
-            (st.session_state.usuario_actual,),
+    def actualizar_carrito_ui(self):
+        for widget in self.frame_carrito_items.winfo_children():
+            widget.destroy()
+
+        total = 0.0
+        for idx, item in enumerate(self.carrito):
+            total += item["precio"]
+
+            row = ctk.CTkFrame(self.frame_carrito_items, height=35, fg_color="#1e293b")
+            row.pack(fill="x", pady=3, padx=2)
+
+            ctk.CTkLabel(row, text=item["nombre"], font=ctk.CTkFont(size=12)).pack(side="left", padx=10)
+            ctk.CTkLabel(
+                row,
+                text=f"${item['precio']:.2f}",
+                font=ctk.CTkFont(size=12, weight="bold"),
+                text_color="#10b981",
+            ).pack(side="left", padx=5)
+
+            btn_del = ctk.CTkButton(
+                row,
+                text="✕",
+                width=25,
+                height=22,
+                fg_color="#ef4444",
+                hover_color="#dc2626",
+                command=lambda i=idx: self.quitar_del_carrito(i),
+            )
+            btn_del.pack(side="right", padx=5)
+
+        self.lbl_total_mesero.configure(text=f"TOTAL: ${total:.2f}")
+
+    def quitar_del_carrito(self, idx):
+        self.carrito.pop(idx)
+        self.actualizar_carrito_ui()
+
+    def enviar_pedido(self):
+        cliente = self.entry_cliente.get().strip()
+        if not cliente or not self.carrito:
+            return messagebox.showwarning("Atención", "Escribe el nombre del cliente y agrega productos.")
+
+        total = sum(i["precio"] for i in self.carrito)
+        items_json = json.dumps(self.carrito)
+        fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        self.cursor.execute(
+            "INSERT INTO pedidos (cliente, items, total, mesero, fecha_hora) VALUES (?, ?, ?, ?, ?)",
+            (cliente, items_json, total, self.usuario_actual, fecha_actual),
         )
-        caja_abierta = cursor.fetchone()
+        self.conn.commit()
 
-    with st.container(border=True):
-        col_caja1, col_caja2 = st.columns([3, 1.2])
+        self.carrito.clear()
+        self.entry_cliente.delete(0, "end")
+        self.actualizar_carrito_ui()
+        messagebox.showinfo("Éxito", "¡Orden registrada correctamente!")
+
+    def vista_gestion_menu(self):
+        for w in self.container_menu_admin.winfo_children():
+            w.destroy()
+
+        left_col = ctk.CTkFrame(self.container_menu_admin, width=380, corner_radius=12)
+        left_col.pack(side="left", fill="y", padx=(0, 10), pady=5)
+
+        ctk.CTkLabel(left_col, text="📁 Gestor de Secciones", font=ctk.CTkFont(size=15, weight="bold")).pack(pady=(15, 5), padx=15, anchor="w")
+
+        f_sec = ctk.CTkFrame(left_col, fg_color="transparent")
+        f_sec.pack(fill="x", padx=15, pady=5)
+
+        self.entry_nueva_sec = ctk.CTkEntry(f_sec, placeholder_text="Nueva Sección", width=190)
+        self.entry_nueva_sec.pack(side="left", padx=(0, 5))
+
+        btn_add_sec = ctk.CTkButton(f_sec, text="+ Crear", width=70, fg_color="#10b981", command=self.crear_seccion)
+        btn_add_sec.pack(side="left")
+
+        f_del_sec = ctk.CTkFrame(left_col, fg_color="transparent")
+        f_del_sec.pack(fill="x", padx=15, pady=(5, 10))
+
+        self.combo_del_sec = ctk.CTkOptionMenu(f_del_sec, values=["General"], width=190)
+        self.combo_del_sec.pack(side="left", padx=(0, 5))
+
+        btn_del_sec = ctk.CTkButton(
+            f_del_sec, text="🗑 Borrar", width=70, fg_color="#ef4444", hover_color="#dc2626", command=self.eliminar_seccion
+        )
+        btn_del_sec.pack(side="left")
+
+        ctk.CTkFrame(left_col, height=2, fg_color="#334155").pack(fill="x", pady=10, padx=15)
+
+        ctk.CTkLabel(left_col, text="➕ Registrar Producto", font=ctk.CTkFont(size=15, weight="bold")).pack(pady=(5, 10), padx=15, anchor="w")
+
+        self.entry_nom_prod = ctk.CTkEntry(left_col, placeholder_text="Nombre del Producto", height=38)
+        self.entry_nom_prod.pack(fill="x", padx=15, pady=5)
+
+        self.entry_precio_prod = ctk.CTkEntry(left_col, placeholder_text="Precio (ej: 4.50)", height=38)
+        self.entry_precio_prod.pack(fill="x", padx=15, pady=5)
+
+        ctk.CTkLabel(left_col, text="Asignar a Sección:", font=ctk.CTkFont(size=12)).pack(anchor="w", padx=15, pady=(5,0))
+        self.combo_secciones_prod = ctk.CTkOptionMenu(left_col, values=["General"])
+        self.combo_secciones_prod.pack(fill="x", padx=15, pady=5)
+
+        self.chk_requiere_salsa = ctk.CTkCheckBox(
+            left_col, text="¿Requiere elegir salsa / término?", font=ctk.CTkFont(size=12), text_color="#38bdf8"
+        )
+        self.chk_requiere_salsa.pack(anchor="w", padx=15, pady=8)
+
+        self.btn_select_img = ctk.CTkButton(
+            left_col, text="📷 Seleccionar Imagen", fg_color="#334155", hover_color="#475569", command=self.seleccionar_imagen_producto
+        )
+        self.btn_select_img.pack(fill="x", padx=15, pady=5)
+
+        self.lbl_path_img = ctk.CTkLabel(left_col, text="Sin imagen seleccionada", font=ctk.CTkFont(size=11))
+        self.lbl_path_img.pack(padx=15, pady=(0, 5))
+
+        btn_guardar_prod = ctk.CTkButton(
+            left_col, text="💾 GUARDAR EN EL MENÚ", fg_color="#10b981", font=ctk.CTkFont(weight="bold"), height=40, command=self.guardar_producto_menu
+        )
+        btn_guardar_prod.pack(fill="x", padx=15, pady=10)
+
+        list_frame = ctk.CTkFrame(self.container_menu_admin, corner_radius=12)
+        list_frame.pack(side="right", fill="both", expand=True, pady=5)
+
+        ctk.CTkLabel(list_frame, text="📋 Menú de Productos", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=15, padx=15, anchor="w")
+
+        self.scroll_lista_menu = ctk.CTkScrollableFrame(list_frame, fg_color="transparent")
+        self.scroll_lista_menu.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.actualizar_secciones_combo()
+        self.actualizar_lista_menu_admin()
+
+    def crear_seccion(self):
+        nombre = self.entry_nueva_sec.get().strip()
+        if not nombre:
+            return
+        try:
+            self.cursor.execute("INSERT INTO categorias (nombre) VALUES (?)", (nombre,))
+            self.conn.commit()
+            self.entry_nueva_sec.delete(0, "end")
+            self.actualizar_secciones_combo()
+            messagebox.showinfo("Éxito", f"Sección '{nombre}' creada.")
+        except sqlite3.IntegrityError:
+            messagebox.showerror("Error", "La sección ya existe.")
+
+    def eliminar_seccion(self):
+        seccion = self.combo_del_sec.get()
+        if seccion == "General":
+            return messagebox.showwarning("Atención", "No se puede eliminar la sección predeterminada 'General'.")
+
+        if messagebox.askyesno("Confirmar Eliminación", f"¿Deseas eliminar la sección '{seccion}'?\nLos productos se moverán a 'General'."):
+            self.cursor.execute("UPDATE productos SET categoria = 'General' WHERE categoria = ?", (seccion,))
+            self.cursor.execute("DELETE FROM categorias WHERE nombre = ?", (seccion,))
+            self.conn.commit()
+            self.actualizar_secciones_combo()
+            self.actualizar_lista_menu_admin()
+            messagebox.showinfo("Éxito", f"Sección '{seccion}' eliminada.")
+
+    def actualizar_secciones_combo(self):
+        self.cursor.execute("SELECT nombre FROM categorias")
+        cats = [c[0] for c in self.cursor.fetchall()]
+        if hasattr(self, 'combo_secciones_prod'):
+            self.combo_secciones_prod.configure(values=cats)
+        if hasattr(self, 'combo_del_sec'):
+            self.combo_del_sec.configure(values=[c for c in cats if c != "General"])
+
+    def seleccionar_imagen_producto(self):
+        archivo = filedialog.askopenfilename(
+            title="Selecciona la foto del producto",
+            filetypes=[("Imágenes", "*.png *.jpg *.jpeg *.webp")],
+        )
+        if archivo:
+            self.ruta_imagen_seleccionada = archivo
+            nom = os.path.basename(archivo)
+            self.lbl_path_img.configure(text=f"Cargado: {nom[:20]}...", text_color="#10b981")
+
+    def guardar_producto_menu(self):
+        nombre = self.entry_nom_prod.get().strip()
+        precio_str = self.entry_precio_prod.get().strip()
+        categoria = self.combo_secciones_prod.get()
+        req_salsa = 1 if self.chk_requiere_salsa.get() == 1 else 0
+
+        if not nombre or not precio_str:
+            return messagebox.showwarning("Atención", "Ingresa el nombre y el precio.")
+
+        try:
+            precio = float(precio_str)
+        except ValueError:
+            return messagebox.showerror("Error", "El precio debe ser un número válido.")
+
+        dest_path = ""
+        if self.ruta_imagen_seleccionada:
+            try:
+                ext = os.path.splitext(self.ruta_imagen_seleccionada)[1]
+                nom_limpio = "".join(c for c in nombre if c.isalnum() or c in (" ", "_")).rstrip()
+                dest_path = os.path.join("imagenes", f"prod_{nom_limpio.replace(' ', '_')}{ext}")
+
+                with Image.open(self.ruta_imagen_seleccionada) as img:
+                    img_rgb = img.convert("RGB")
+                    img_rgb.save(dest_path)
+            except Exception as e:
+                dest_path = ""
+
+        try:
+            self.cursor.execute(
+                "INSERT INTO productos (nombre, precio, categoria, icono, imagen_path, requiere_salsa) VALUES (?, ?, ?, ?, ?, ?)",
+                (nombre, precio, categoria, "🍔", dest_path, req_salsa),
+            )
+            self.conn.commit()
+
+            self.entry_nom_prod.delete(0, "end")
+            self.entry_precio_prod.delete(0, "end")
+            self.chk_requiere_salsa.deselect()
+            self.ruta_imagen_seleccionada = None
+            self.lbl_path_img.configure(text="Sin imagen seleccionada", text_color="gray")
+
+            messagebox.showinfo("Éxito", f"¡Producto '{nombre}' guardado!")
+            self.actualizar_lista_menu_admin()
+        except Exception as err_db:
+            messagebox.showerror("Error DB", f"Error en base de datos: {err_db}")
+
+    def actualizar_lista_menu_admin(self):
+        for w in self.scroll_lista_menu.winfo_children():
+            w.destroy()
+
+        self.cursor.execute("SELECT id, nombre, precio, categoria, requiere_salsa FROM productos")
+        prods = self.cursor.fetchall()
+
+        for p_id, nombre, precio, cat, req_salsa in prods:
+            row = ctk.CTkFrame(self.scroll_lista_menu, fg_color="#1e293b", height=50)
+            row.pack(fill="x", pady=4, padx=5)
+
+            ctk.CTkLabel(row, text=nombre, font=ctk.CTkFont(weight="bold"), width=180, anchor="w").pack(side="left", padx=10)
+            ctk.CTkLabel(row, text=f"[{cat}]", text_color="gray70", width=120, anchor="w").pack(side="left", padx=5)
+            
+            salsa_lbl = " [Salsa Activa]" if req_salsa == 1 else ""
+            ctk.CTkLabel(row, text=f"${precio:.2f}{salsa_lbl}", text_color="#10b981", font=ctk.CTkFont(weight="bold"), width=120, anchor="w").pack(side="left", padx=5)
+
+            btn_del = ctk.CTkButton(
+                row, text="🗑 Eliminar", width=80, height=28, fg_color="#ef4444", command=lambda id_p=p_id: self.eliminar_producto_menu(id_p)
+            )
+            btn_del.pack(side="right", padx=10)
+
+    def eliminar_producto_menu(self, p_id):
+        if messagebox.askyesno("Confirmar", "¿Seguro que deseas eliminar este producto?"):
+            self.cursor.execute("DELETE FROM productos WHERE id = ?", (p_id,))
+            self.conn.commit()
+            self.actualizar_lista_menu_admin()
+
+    def vista_gestion_metodos_pago(self):
+        for w in self.container_pagos_admin.winfo_children():
+            w.destroy()
+
+        f_left = ctk.CTkFrame(self.container_pagos_admin, width=350)
+        f_left.pack(side="left", fill="y", padx=10, pady=10)
+
+        ctk.CTkLabel(f_left, text="💳 Añadir Forma de Pago", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=15, padx=15)
+
+        self.entry_nuevo_metodo = ctk.CTkEntry(f_left, placeholder_text="Ej: Tarjeta de Crédito", height=40)
+        self.entry_nuevo_metodo.pack(fill="x", padx=15, pady=10)
+
+        btn_guardar_mp = ctk.CTkButton(f_left, text="Guardar Método", fg_color="#10b981", command=self.guardar_metodo_pago)
+        btn_guardar_mp.pack(fill="x", padx=15, pady=10)
+
+        f_right = ctk.CTkFrame(self.container_pagos_admin)
+        f_right.pack(side="right", fill="both", expand=True, padx=10, pady=10)
+
+        ctk.CTkLabel(f_right, text="📋 Métodos de Pago Activos", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=15, padx=15)
+
+        self.scroll_metodos_pago = ctk.CTkScrollableFrame(f_right, fg_color="transparent")
+        self.scroll_metodos_pago.pack(fill="both", expand=True, padx=15, pady=10)
+
+        self.actualizar_lista_metodos_pago()
+
+    def guardar_metodo_pago(self):
+        nombre = self.entry_nuevo_metodo.get().strip()
+        if not nombre:
+            return
+        try:
+            self.cursor.execute("INSERT INTO metodos_pago (nombre) VALUES (?)", (nombre,))
+            self.conn.commit()
+            self.entry_nuevo_metodo.delete(0, "end")
+            self.actualizar_lista_metodos_pago()
+            messagebox.showinfo("Éxito", f"Método de pago '{nombre}' agregado.")
+        except sqlite3.IntegrityError:
+            messagebox.showerror("Error", "Este método de pago ya existe.")
+
+    def actualizar_lista_metodos_pago(self):
+        for w in self.scroll_metodos_pago.winfo_children():
+            w.destroy()
+
+        self.cursor.execute("SELECT id, nombre FROM metodos_pago")
+        for m_id, nom in self.cursor.fetchall():
+            row = ctk.CTkFrame(self.scroll_metodos_pago, fg_color="#1e293b", height=40)
+            row.pack(fill="x", pady=3)
+
+            ctk.CTkLabel(row, text=nom, font=ctk.CTkFont(weight="bold")).pack(side="left", padx=15)
+
+            btn_del = ctk.CTkButton(row, text="🗑", width=30, fg_color="#ef4444", command=lambda i=m_id: self.eliminar_metodo_pago(i))
+            btn_del.pack(side="right", padx=10)
+
+    def eliminar_metodo_pago(self, m_id):
+        self.cursor.execute("DELETE FROM metodos_pago WHERE id = ?", (m_id,))
+        self.conn.commit()
+        self.actualizar_lista_metodos_pago()
+
+    def vista_caja(self):
+        self.construir_modulo_caja(self.main_container)
+
+    def construir_modulo_caja(self, parent_frame):
+        for w in parent_frame.winfo_children():
+            w.destroy()
+
+        self.cursor.execute("SELECT id, monto_apertura FROM cajas WHERE cajero=? AND estado='abierta'", (self.usuario_actual,))
+        caja_abierta = self.cursor.fetchone()
+
+        bar_caja = ctk.CTkFrame(parent_frame, height=50, fg_color="#1e293b")
+        bar_caja.pack(fill="x", pady=(0, 10))
+
         if not caja_abierta:
-            col_caja1.markdown(
-                "<h3 style='color: #ef4444; margin:0;'>🔴 CAJA CERRADA</h3>",
-                unsafe_allow_html=True,
-            )
-            with col_caja2.popover("🔓 Abrir Caja"):
-                monto_apertura = st.number_input(
-                    "Monto Base Inicial ($):", min_value=0.0, step=5.0
-                )
-                if st.button("Confirmar Apertura"):
-                    fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    with get_connection() as conn_ins:
-                        c_ins = conn_ins.cursor()
-                        c_ins.execute(
-                            "INSERT INTO cajas (cajero, monto_apertura, fecha_apertura, estado) VALUES (?, ?, ?, 'abierta')",
-                            (
-                                st.session_state.usuario_actual,
-                                monto_apertura,
-                                fecha,
-                            ),
-                        )
-                        conn_ins.commit()
-                    st.success("Caja Abierta Exitosamente")
-                    st.rerun()
+            ctk.CTkLabel(bar_caja, text="⚠️ CAJA CERRADA", font=ctk.CTkFont(size=14, weight="bold"), text_color="#ef4444").pack(side="left", padx=15)
+            btn_abrir = ctk.CTkButton(bar_caja, text="🔓 ABRIR CAJA", fg_color="#10b981", command=lambda: self.dialogo_abrir_caja(parent_frame))
+            btn_abrir.pack(side="left", padx=10)
         else:
-            col_caja1.markdown(
-                f"<h3 style='color: #10b981; margin:0;'>🟢 CAJA ABIERTA <small style='font-size:14px; color:#94a3b8;'>(Base: ${caja_abierta['monto_apertura']:.2f})</small></h3>",
-                unsafe_allow_html=True,
+            ctk.CTkLabel(
+                bar_caja, text=f"🟢 CAJA ABIERTA (Base: ${caja_abierta[1]:.2f})", font=ctk.CTkFont(size=14, weight="bold"), text_color="#10b981"
+            ).pack(side="left", padx=15)
+            btn_cerrar = ctk.CTkButton(
+                bar_caja, text="🔒 CERRAR CAJA", fg_color="#ef4444", command=lambda: self.dialogo_cerrar_caja(caja_abierta[0], parent_frame)
             )
-            if col_caja2.button("🔒 CERRAR CAJA (ARQUEO)"):
-                with get_connection() as conn_tot:
-                    c_tot = conn_tot.cursor()
-                    c_tot.execute(
-                        "SELECT SUM(total) FROM pedidos WHERE estado='cobrado'"
-                    )
-                    ventas = c_tot.fetchone()[0] or 0.0
+            btn_cerrar.pack(side="right", padx=15)
 
-                base = caja_abierta["monto_apertura"]
-                esperado = base + ventas
+        self.scroll_caja = ctk.CTkScrollableFrame(parent_frame, fg_color="transparent")
+        self.scroll_caja.pack(fill="both", expand=True)
+        self.actualizar_caja()
+
+    def dialogo_abrir_caja(self, parent_frame):
+        dialogo = ctk.CTkInputDialog(text="Ingresa el monto base en caja ($):", title="Apertura de Caja")
+        monto_str = dialogo.get_input()
+
+        if monto_str is not None:
+            try:
+                monto = float(monto_str)
                 fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                self.cursor.execute(
+                    "INSERT INTO cajas (cajero, monto_apertura, fecha_apertura, estado) VALUES (?, ?, ?, 'abierta')",
+                    (self.usuario_actual, monto, fecha),
+                )
+                self.conn.commit()
+                messagebox.showinfo("Éxito", f"Caja abierta con ${monto:.2f}")
+                self.construir_modulo_caja(parent_frame)
+            except ValueError:
+                messagebox.showerror("Error", "Monto no válido.")
 
-                with get_connection() as conn_close:
-                    c_close = conn_close.cursor()
-                    c_close.execute(
-                        "UPDATE cajas SET monto_cierre=?, ventas_efectivo=?, fecha_cierre=?, estado='cerrada' WHERE id=?",
-                        (esperado, ventas, fecha, caja_abierta["id"]),
-                    )
-                    conn_close.commit()
-                st.balloons()
-                st.success(f"Caja Cerrada. Arqueo Esperado: ${esperado:.2f}")
-                st.rerun()
+    def dialogo_cerrar_caja(self, caja_id, parent_frame):
+        self.cursor.execute("SELECT SUM(total) FROM pedidos WHERE estado='cobrado'")
+        total_ventas = self.cursor.fetchone()[0] or 0.0
 
-    st.subheader("💳 Cuentas Pendientes")
+        self.cursor.execute("SELECT monto_apertura FROM cajas WHERE id=?", (caja_id,))
+        base = self.cursor.fetchone()[0]
 
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
+        esperado = base + total_ventas
+
+        if messagebox.askyesno(
+            "Cierre de Caja",
+            f"📊 RESUMEN:\n\n• Base Inicial: ${base:.2f}\n• Ventas Cobradas: ${total_ventas:.2f}\n• TOTAL ESPERADO: ${esperado:.2f}\n\n¿Cerrar caja?",
+        ):
+            fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.cursor.execute(
+                "UPDATE cajas SET monto_cierre=?, ventas_efectivo=?, fecha_cierre=?, estado='cerrada' WHERE id=?",
+                (esperado, total_ventas, fecha, caja_id),
+            )
+            self.conn.commit()
+            messagebox.showinfo("Caja Cerrada", f"Arqueo final: ${esperado:.2f}")
+            self.construir_modulo_caja(parent_frame)
+
+    def actualizar_caja(self):
+        for widget in self.scroll_caja.winfo_children():
+            widget.destroy()
+
+        self.cursor.execute("SELECT nombre FROM metodos_pago")
+        metodos = [m[0] for m in self.cursor.fetchall()]
+
+        self.cursor.execute(
             "SELECT id, cliente, items, total, estado, mesero, fecha_hora FROM pedidos WHERE estado != 'cobrado' AND estado != 'anulado'"
         )
-        pedidos_caja = cursor.fetchall()
+        pedidos = self.cursor.fetchall()
 
-    if not pedidos_caja:
-        st.info("No hay cobros pendientes.")
-        return
+        for i, (p_id, cliente, items_raw, total, estado, mesero, fh) in enumerate(pedidos):
+            row = i // 3
+            col = i % 3
 
-    cols = st.columns(3)
-    for idx, p in enumerate(pedidos_caja):
-        with cols[idx % 3]:
-            with st.container(border=True):
-                st.markdown(
-                    f"### Orden #{p['id']} - <span style='color:#38bdf8;'>{p['cliente']}</span>",
-                    unsafe_allow_html=True,
-                )
-                st.caption(f"Mesero: {p['mesero']}")
+            card = ctk.CTkFrame(self.scroll_caja, corner_radius=12, fg_color="#1e293b", border_width=1, border_color="#38bdf8")
+            card.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
 
-                if p["estado"] == "preparado":
-                    st.markdown(
-                        "<span class='badge-preparado'>¡LISTO PARA ENTREGAR!</span>",
-                        unsafe_allow_html=True,
+            ctk.CTkLabel(card, text=f"Orden #{p_id} - {cliente}", font=ctk.CTkFont(size=15, weight="bold"), text_color="#38bdf8").pack(pady=(5, 2), padx=15, anchor="w")
+            ctk.CTkLabel(card, text=f"Atendido: {mesero}", font=ctk.CTkFont(size=11), text_color="gray70").pack(padx=15, anchor="w")
+
+            btn_add_item = ctk.CTkButton(
+                card, text="➕ Añadir Adicional", width=120, height=24, fg_color="#334155", command=lambda id_p=p_id, it=items_raw, tot=total: self.agregar_item_desde_caja(id_p, it, tot)
+            )
+            btn_add_item.pack(anchor="e", padx=15, pady=(5, 0))
+
+            ctk.CTkLabel(card, text=f"Total: ${total:.2f}", font=ctk.CTkFont(size=20, weight="bold"), text_color="#10b981").pack(pady=5)
+
+            combo_pago = ctk.CTkOptionMenu(card, values=metodos)
+            combo_pago.pack(fill="x", padx=10, pady=3)
+
+            btn_cobrar = ctk.CTkButton(
+                card, text="💵 COBRAR", fg_color="#0284c7", font=ctk.CTkFont(weight="bold"), command=lambda id_p=p_id, t=total, mp=combo_pago: self.procesar_cobro_metodo(id_p, t, mp.get())
+            )
+            btn_cobrar.pack(fill="x", padx=10, pady=(5, 10))
+
+    def agregar_item_desde_caja(self, pedido_id, items_json_actual, total_actual):
+        self.cursor.execute("SELECT nombre, precio FROM productos")
+        productos = self.cursor.fetchall()
+
+        ventana_add = ctk.CTkToplevel(self)
+        ventana_add.title(f"Añadir Adicional - Orden #{pedido_id}")
+        ventana_add.geometry("400x220")
+        ventana_add.grab_set()
+
+        nombres_prods = [f"{p[0]} - ${p[1]:.2f}" for p in productos]
+        combo_prods = ctk.CTkOptionMenu(ventana_add, values=nombres_prods, width=280)
+        combo_prods.pack(pady=20)
+
+        def confirmar():
+            seleccion = combo_prods.get()
+            for nombre, precio in productos:
+                if f"{nombre} - ${precio:.2f}" == seleccion:
+                    items_lista = json.loads(items_json_actual)
+                    items_lista.append({"nombre": nombre, "precio": precio})
+                    nuevo_total = total_actual + precio
+                    self.cursor.execute(
+                        "UPDATE pedidos SET items = ?, total = ? WHERE id = ?",
+                        (json.dumps(items_lista), nuevo_total, pedido_id),
                     )
-                else:
-                    st.markdown(
-                        "<span class='badge-pendiente'>En cocina...</span>",
-                        unsafe_allow_html=True,
-                    )
+                    self.conn.commit()
+                    ventana_add.destroy()
+                    self.actualizar_caja()
+                    break
 
-                st.markdown(
-                    f"<h2 style='color:#10b981; margin-top:10px;'>${p['total']:.2f}</h2>",
-                    unsafe_allow_html=True,
-                )
+        ctk.CTkButton(ventana_add, text="Agregar", fg_color="#10b981", command=confirmar).pack(pady=10)
 
-                monto_pagado = st.number_input(
-                    "Paga con ($):",
-                    value=float(p["total"]),
-                    min_value=float(p["total"]),
-                    key=f"monto_{p['id']}",
-                )
-
-                if st.button(
-                    "💵 COBRAR",
-                    key=f"cobrar_{p['id']}",
-                    use_container_width=True,
-                    type="primary",
-                ):
-                    cambio = monto_pagado - p["total"]
-                    with get_connection() as conn_pay:
-                        c_pay = conn_pay.cursor()
-                        c_pay.execute(
-                            "UPDATE pedidos SET estado = 'cobrado' WHERE id = ?",
-                            (p["id"],),
-                        )
-                        conn_pay.commit()
-                    st.success(f"Cobro Exitoso. Cambio: ${cambio:.2f}")
-                    st.rerun()
-
-
-# ---------------------------------------------------------
-# VISTA: MULTIFUNCIÓN (CATÁLOGO MESERO + CAJA EN PANTALLA)
-# ---------------------------------------------------------
-def vista_multifuncion():
-    st.markdown("<h1>⚡ Módulo Integrado (Caja & Mesero)</h1>", unsafe_allow_html=True)
-
-    # 1. Apertura / Cierre de Caja
-    with get_connection() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT id, monto_apertura FROM cajas WHERE cajero=? AND estado='abierta'",
-            (st.session_state.usuario_actual,),
+    def procesar_cobro_metodo(self, p_id, total, metodo_pago):
+        self.cursor.execute(
+            "UPDATE pedidos SET estado = 'cobrado', metodo_pago = ? WHERE id = ?",
+            (metodo_pago, p_id),
         )
-        caja_abierta = cursor.fetchone()
+        self.conn.commit()
+        messagebox.showinfo("Éxito", f"Orden #{p_id} cobrada en {metodo_pago}.\nTotal: ${total:.2f}")
+        self.actualizar_caja()
 
-    with st.container(border=True):
-        col_c1, col_c2 = st.columns([3, 1])
-        if not caja_abierta:
-            col_c1.markdown("<h4 style='color: #ef4444; margin:0;'>🔴 CAJA CERRADA</h4>", unsafe_allow_html=True)
-            with col_c2.popover("🔓 Abrir Caja"):
-                m_ap = st.number_input("Monto Inicial ($):", min_value=0.0, step=5.0)
-                if st.button("Aceptar"):
-                    fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    with get_connection() as conn_i:
-                        c_i = conn_i.cursor()
-                        c_i.execute(
-                            "INSERT INTO cajas (cajero, monto_apertura, fecha_apertura, estado) VALUES (?, ?, ?, 'abierta')",
-                            (st.session_state.usuario_actual, m_ap, fecha),
-                        )
-                        conn_i.commit()
-                    st.success("Caja Abierta")
-                    st.rerun()
-        else:
-            col_c1.markdown(f"<h4 style='color: #10b981; margin:0;'>🟢 CAJA ABIERTA (Base: ${caja_abierta['monto_apertura']:.2f})</h4>", unsafe_allow_html=True)
-            if col_c2.button("🔒 Cerrar Caja"):
-                with get_connection() as conn_tot:
-                    c_tot = conn_tot.cursor()
-                    c_tot.execute("SELECT SUM(total) FROM pedidos WHERE estado='cobrado'")
-                    ventas = c_tot.fetchone()[0] or 0.0
-                base = caja_abierta["monto_apertura"]
-                esperado = base + ventas
-                fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                with get_connection() as conn_close:
-                    c_close = conn_close.cursor()
-                    c_close.execute(
-                        "UPDATE cajas SET monto_cierre=?, ventas_efectivo=?, fecha_cierre=?, estado='cerrada' WHERE id=?",
-                        (esperado, ventas, fecha, caja_abierta["id"]),
-                    )
-                    conn_close.commit()
-                st.success(f"Caja Cerrada. Arqueo: ${esperado:.2f}")
-                st.rerun()
+    def construir_modulo_lista_pedidos(self, parent_frame):
+        for w in parent_frame.winfo_children():
+            w.destroy()
 
-    # 2. Distribución en 2 grandes bloques: Tomar Pedido (Catálogo Mesero) y Panel de Caja/Mesa
-    col_izq, col_der = st.columns([2.2, 1.8])
+        ctk.CTkLabel(parent_frame, text="📋 Historial Activo de Pedidos", font=ctk.CTkFont(size=18, weight="bold")).pack(anchor="w", pady=(0, 10))
 
-    # --- IZQUIERDA: CATÁLOGO VISUAL TAL CUAL COMO EL MESERO ---
-    with col_izq:
-        st.subheader("🍔 Catálogo de Productos")
-        with get_connection() as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, nombre, precio, icono, imagen_path FROM productos")
-            productos_m = c.fetchall()
+        scroll = ctk.CTkScrollableFrame(parent_frame, fg_color="#1e293b")
+        scroll.pack(fill="both", expand=True)
 
-        if not productos_m:
-            st.info("No hay productos en el menú.")
+        self.cursor.execute("SELECT id, cliente, total, estado, metodo_pago FROM pedidos ORDER BY id DESC LIMIT 50")
+        for p_id, cliente, total, estado, mp in self.cursor.fetchall():
+            row = ctk.CTkFrame(scroll, fg_color="#0f172a")
+            row.pack(fill="x", padx=5, pady=4)
 
-        cols_m = st.columns(2)
-        for idx_m, prod_m in enumerate(productos_m):
-            with cols_m[idx_m % 2]:
-                with st.container(border=True):
-                    img_p = prod_m["imagen_path"]
-                    if img_p and os.path.exists(img_p):
-                        st.image(img_p, use_container_width=True)
-                    else:
-                        st.markdown(
-                            f"<h1 style='text-align: center; margin: 5px 0;'>{prod_m['icono']}</h1>",
-                            unsafe_allow_html=True,
-                        )
+            ctk.CTkLabel(row, text=f"#{p_id}", width=40, font=ctk.CTkFont(weight="bold")).pack(side="left", padx=5)
+            ctk.CTkLabel(row, text=cliente, width=120, anchor="w").pack(side="left", padx=5)
+            ctk.CTkLabel(row, text=f"${total:.2f}", width=70, text_color="#10b981", font=ctk.CTkFont(weight="bold")).pack(side="left", padx=5)
+            ctk.CTkLabel(row, text=estado.upper(), width=90, text_color="#38bdf8", font=ctk.CTkFont(weight="bold")).pack(side="left", padx=5)
+            ctk.CTkLabel(row, text=f"Pago: {mp}", width=160, text_color="gray70", anchor="w").pack(side="left", padx=5)
 
-                    st.markdown(f"**{prod_m['nombre']}**")
-                    st.markdown(
-                        f"<h4 style='color: #10b981; margin: 0;'>${prod_m['precio']:.2f}</h4>",
-                        unsafe_allow_html=True,
-                    )
+    def vista_cocina(self):
+        ctk.CTkLabel(self.main_container, text="🔥 Monitor de Cocina - Comandas Pendientes", font=ctk.CTkFont(size=18, weight="bold"), text_color="#f97316").pack(anchor="w", pady=(0, 15))
 
-                    if st.button(
-                        "➕ Agregar",
-                        key=f"add_mult_{prod_m['id']}",
-                        use_container_width=True,
-                    ):
-                        st.session_state.carrito.append(
-                            {
-                                "nombre": prod_m["nombre"],
-                                "precio": prod_m["precio"],
-                            }
-                        )
-                        st.rerun()
+        self.scroll_cocina = ctk.CTkScrollableFrame(self.main_container, fg_color="transparent")
+        self.scroll_cocina.pack(fill="both", expand=True)
+        self.actualizar_cocina()
 
-    # --- DERECHA: CARRITO + COBROS + MODIFICACIÓN DE MESAS ---
-    with col_der:
-        tab_c1, tab_c2, tab_c3 = st.tabs(["🛒 Carrito Actual", "💵 Cobrar Cuentas", "🛠️ Gestor Mesas"])
+    def actualizar_cocina(self):
+        for widget in self.scroll_cocina.winfo_children():
+            widget.destroy()
 
-        # Tab 1: Carrito para enviar orden
-        with tab_c1:
-            with st.container(border=True):
-                cli_multi = st.text_input("Mesa / Cliente:", key="cli_multi", placeholder="Ej. Mesa 2")
-                st.markdown("---")
-                tot_multi = 0.0
-                if not st.session_state.carrito:
-                    st.caption("El carrito está vacío.")
-                else:
-                    for i_m, it_m in enumerate(st.session_state.carrito):
-                        cx, cy, cz = st.columns([3, 2, 1])
-                        cx.write(it_m["nombre"])
-                        cy.write(f"${it_m['precio']:.2f}")
-                        if cz.button("❌", key=f"del_m_cart_{i_m}"):
-                            st.session_state.carrito.pop(i_m)
-                            st.rerun()
-                        tot_multi += it_m["precio"]
+        self.cursor.execute("SELECT id, cliente, items FROM pedidos WHERE estado = 'pendiente'")
+        for i, (p_id, cliente, items_raw) in enumerate(self.cursor.fetchall()):
+            items = json.loads(items_raw)
+            row, col = i // 3, i % 3
 
-                st.markdown("---")
-                st.markdown(f"<h3 style='color: #10b981; text-align: right;'>Total: ${tot_multi:.2f}</h3>", unsafe_allow_html=True)
+            card = ctk.CTkFrame(self.scroll_cocina, corner_radius=12, fg_color="#1e293b", border_width=1, border_color="#f97316")
+            card.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
 
-                if st.button("🚀 ENVIAR ORDEN A COCINA", type="primary", use_container_width=True):
-                    if not cli_multi.strip() or not st.session_state.carrito:
-                        st.warning("Escribe el nombre de la mesa y selecciona productos.")
-                    else:
-                        fecha_act = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        with get_connection() as conn:
-                            c = conn.cursor()
-                            c.execute(
-                                "INSERT INTO pedidos (cliente, items, total, mesero, fecha_hora) VALUES (?, ?, ?, ?, ?)",
-                                (cli_multi, json.dumps(st.session_state.carrito), tot_multi, st.session_state.usuario_actual, fecha_act),
-                            )
-                            conn.commit()
-                        st.session_state.carrito = []
-                        st.success("¡Orden Enviada!")
-                        st.rerun()
+            ctk.CTkLabel(card, text=f"Orden #{p_id} - {cliente}", font=ctk.CTkFont(size=15, weight="bold"), text_color="#f97316").pack(pady=(10, 2), padx=15, anchor="w")
 
-        # Tab 2: Cobros pendientes
-        with tab_c2:
-            with get_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT id, cliente, total, estado FROM pedidos WHERE estado != 'cobrado' AND estado != 'anulado' ORDER BY id DESC")
-                peds_cobro = c.fetchall()
+            list_frame = ctk.CTkFrame(card, fg_color="#0f172a")
+            list_frame.pack(fill="both", expand=True, padx=10, pady=5)
 
-            if not peds_cobro:
-                st.info("Sin cuentas pendientes.")
-            else:
-                for pc in peds_cobro:
-                    with st.container(border=True):
-                        st.markdown(f"**Orden #{pc['id']} - {pc['cliente']}**")
-                        if pc['estado'] == 'preparado':
-                            st.markdown("<span class='badge-preparado'>¡LISTO!</span>", unsafe_allow_html=True)
-                        else:
-                            st.markdown("<span class='badge-pendiente'>En Cocina</span>", unsafe_allow_html=True)
-                        
-                        st.markdown(f"<h3 style='color:#10b981; margin:0;'>${pc['total']:.2f}</h3>", unsafe_allow_html=True)
-                        pag = st.number_input("Paga ($):", value=float(pc['total']), min_value=float(pc['total']), key=f"pm_{pc['id']}")
-                        
-                        if st.button("💵 COBRAR", key=f"cob_m_{pc['id']}", use_container_width=True, type="primary"):
-                            cambio = pag - pc['total']
-                            with get_connection() as conn_up:
-                                cu = conn_up.cursor()
-                                cu.execute("UPDATE pedidos SET estado='cobrado' WHERE id=?", (pc['id'],))
-                                conn_up.commit()
-                            st.success(f"Cobrado. Cambio: ${cambio:.2f}")
-                            st.rerun()
+            for item in items:
+                ctk.CTkLabel(list_frame, text=f"• {item['nombre']}", anchor="w").pack(fill="x", padx=10, pady=2)
 
-        # Tab 3: Gestor de Mesas (Editar / Borrar)
-        with tab_c3:
-            with get_connection() as conn:
-                c = conn.cursor()
-                c.execute("SELECT id, cliente, items, total FROM pedidos WHERE estado != 'cobrado' AND estado != 'anulado' ORDER BY id DESC")
-                peds_act = c.fetchall()
+            btn_listo = ctk.CTkButton(card, text="✔ MARCAR LISTO", fg_color="#f97316", command=lambda id_p=p_id: self.marcar_listo_cocina(id_p))
+            btn_listo.pack(fill="x", padx=10, pady=10)
 
-            if not peds_act:
-                st.info("Sin pedidos activos.")
-            else:
-                for pa in peds_act:
-                    with st.container(border=True):
-                        st.markdown(f"**#{pa['id']} - {pa['cliente']}** (${pa['total']:.2f})")
-                        items_m = json.loads(pa["items"])
-                        
-                        with st.popover("✏️ Modificar", use_container_width=True):
-                            n_cli = st.text_input("Cambiar Mesa:", value=pa["cliente"], key=f"n_cli_{pa['id']}")
-                            
-                            st.markdown("---")
-                            st.markdown("**Eliminar producto:**")
-                            for m_idx, m_item in enumerate(items_m):
-                                col_mf1, col_mf2 = st.columns([3, 1])
-                                col_mf1.write(f"• {m_item['nombre']} (${m_item['precio']:.2f})")
-                                if col_mf2.button("❌", key=f"del_m_it_{pa['id']}_{m_idx}"):
-                                    items_m.pop(m_idx)
-                                    nuevo_tot_m = sum(x["precio"] for x in items_m)
-                                    with get_connection() as conn_rem_m:
-                                        cd_m = conn_rem_m.cursor()
-                                        cd_m.execute(
-                                            "UPDATE pedidos SET items=?, total=? WHERE id=?",
-                                            (json.dumps(items_m), nuevo_tot_m, pa["id"])
-                                        )
-                                        conn_rem_m.commit()
-                                    st.success("Eliminado")
-                                    st.rerun()
+    def marcar_listo_cocina(self, p_id):
+        self.cursor.execute("UPDATE pedidos SET estado = 'preparado' WHERE id = ?", (p_id,))
+        self.conn.commit()
+        self.actualizar_cocina()
 
-                            st.markdown("---")
-                            st.markdown("**Añadir producto:**")
-                            if productos_m:
-                                p_add = st.selectbox("Añadir producto:", [f"{pr['nombre']} - ${pr['precio']:.2f}" for pr in productos_m], key=f"p_add_{pa['id']}")
-                                if st.button("➕ Añadir", key=f"btn_add_mult_{pa['id']}"):
-                                    n_p = p_add.split(" - $")[0]
-                                    p_p = float(p_add.split(" - $")[1])
-                                    items_m.append({"nombre": n_p, "precio": p_p})
-                                    n_tot = sum(x["precio"] for x in items_m)
-                                    with get_connection() as conn_u:
-                                        cu = conn_u.cursor()
-                                        cu.execute("UPDATE pedidos SET cliente=?, items=?, total=? WHERE id=?", (n_cli, json.dumps(items_m), n_tot, pa["id"]))
-                                        conn_u.commit()
-                                    st.success("Actualizado")
-                                    st.rerun()
+    def vista_gestion_usuarios(self):
+        form_u = ctk.CTkFrame(self.container_usuarios, width=360, corner_radius=12)
+        form_u.pack(side="left", fill="y", padx=(0, 10), pady=5)
 
-                        if st.button("🗑️ Anular", key=f"del_m_act_{pa['id']}", use_container_width=True):
-                            with get_connection() as conn_d:
-                                cd = conn_d.cursor()
-                                cd.execute("UPDATE pedidos SET estado='anulado' WHERE id=?", (pa["id"],))
-                                conn_d.commit()
-                            st.warning("Anulado")
-                            st.rerun()
+        self.lbl_titulo_form_u = ctk.CTkLabel(form_u, text="➕ Registrar Usuario", font=ctk.CTkFont(size=16, weight="bold"))
+        self.lbl_titulo_form_u.pack(pady=15, padx=15, anchor="w")
 
+        self.entry_u_nombre = ctk.CTkEntry(form_u, placeholder_text="Nombre Completo", height=40)
+        self.entry_u_nombre.pack(fill="x", padx=15, pady=8)
 
-# ---------------------------------------------------------
-# VISTA: ADMINISTRADOR
-# ---------------------------------------------------------
-def vista_admin():
-    st.markdown("<h1>🛡️ Módulo Administrador</h1>", unsafe_allow_html=True)
-    tab_reportes, tab_usuarios, tab_menu = st.tabs(
-        ["📊 Reportes KPI", "👥 Personal", "🍔 Menú"]
-    )
+        self.entry_u_user = ctk.CTkEntry(form_u, placeholder_text="Usuario (Login)", height=40)
+        self.entry_u_user.pack(fill="x", padx=15, pady=8)
 
-    with tab_reportes:
-        filtro = st.selectbox(
-            "📅 Filtrar reporte por fecha:",
-            ["Hoy", "Ayer", "Últimos 7 días", "Todos los Tiempos"],
-        )
+        self.entry_u_clave = ctk.CTkEntry(form_u, placeholder_text="Contraseña", show="*", height=40)
+        self.entry_u_clave.pack(fill="x", padx=15, pady=8)
 
-        hoy = datetime.now()
-        where_clause = ""
-        if filtro == "Hoy":
-            where_clause = f"WHERE fecha_hora LIKE '{hoy.strftime('%Y-%m-%d')}%'"
-        elif filtro == "Ayer":
-            ayer = (hoy - timedelta(days=1)).strftime("%Y-%m-%d")
-            where_clause = f"WHERE fecha_hora LIKE '{ayer}%'"
-        elif filtro == "Últimos 7 días":
-            hace_7 = (hoy - timedelta(days=7)).strftime("%Y-%m-%d")
-            where_clause = f"WHERE fecha_hora >= '{hace_7}'"
+        self.combo_u_rol = ctk.CTkOptionMenu(form_u, values=["mesero", "cocina", "caja", "multitarea", "admin"], height=38)
+        self.combo_u_rol.pack(fill="x", padx=15, pady=(5, 12))
 
-        with get_connection() as conn:
-            cursor = conn.cursor()
+        btn_guardar = ctk.CTkButton(form_u, text="💾 GUARDAR", fg_color="#10b981", command=self.guardar_usuario)
+        btn_guardar.pack(fill="x", padx=15, pady=8)
 
-            and_cobrado = (
-                "AND estado='cobrado'"
-                if where_clause
-                else "WHERE estado='cobrado'"
-            )
-            cursor.execute(
-                f"SELECT SUM(total) FROM pedidos {where_clause} {and_cobrado}"
-            )
-            cobrado = cursor.fetchone()[0] or 0.0
+        tabla_frame = ctk.CTkFrame(self.container_usuarios, corner_radius=12)
+        tabla_frame.pack(side="right", fill="both", expand=True, pady=5)
 
-            and_anulado = (
-                "AND estado='anulado'"
-                if where_clause
-                else "WHERE estado='anulado'"
-            )
-            cursor.execute(
-                f"SELECT COUNT(*), SUM(total) FROM pedidos {where_clause} {and_anulado}"
-            )
-            res_anulado = cursor.fetchone()
-            cant_anulados = res_anulado[0] or 0
-            monto_anulado = res_anulado[1] or 0.0
+        self.scroll_tabla_u = ctk.CTkScrollableFrame(tabla_frame, fg_color="transparent")
+        self.scroll_tabla_u.pack(fill="both", expand=True, padx=10, pady=10)
 
-            cursor.execute(f"SELECT COUNT(*) FROM pedidos {where_clause}")
-            total_pedidos = cursor.fetchone()[0] or 0
+        self.actualizar_tabla_usuarios()
 
-        kpi1, kpi2, kpi3 = st.columns(3)
-        kpi1.metric("💵 Ventas Cobradas", f"${cobrado:.2f}")
-        kpi2.metric(
-            "🚫 Órdenes Anuladas",
-            f"{cant_anulados}",
-            delta=f"-${monto_anulado:.2f}",
-            delta_color="inverse",
-        )
-        kpi3.metric("📦 Total de Pedidos", f"{total_pedidos}")
+    def guardar_usuario(self):
+        nombre = self.entry_u_nombre.get().strip()
+        user = self.entry_u_user.get().strip()
+        clave = self.entry_u_clave.get().strip()
+        rol = self.combo_u_rol.get()
 
-        st.subheader("📋 Historial Reciente")
-        with get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                f"SELECT id, fecha_hora, mesero, cliente, total, estado FROM pedidos {where_clause} ORDER BY id DESC"
-            )
-            pedidos_historial = cursor.fetchall()
+        if not nombre or not user or not clave:
+            return messagebox.showwarning("Atención", "Completa todos los campos.")
 
-        if pedidos_historial:
-            for p in pedidos_historial:
-                with st.container(border=True):
-                    col_h1, col_h2, col_h3, col_h4, col_h5, col_h6 = st.columns(
-                        [1, 2, 2, 2, 2, 2]
-                    )
-                    col_h1.write(f"#{p['id']}")
-                    col_h2.write(p["fecha_hora"])
-                    col_h3.write(p["mesero"])
-                    col_h4.write(p["cliente"])
-                    col_h5.write(f"${p['total']:.2f}")
+        try:
+            self.cursor.execute("INSERT INTO usuarios (nombre, usuario, clave, rol) VALUES (?, ?, ?, ?)", (nombre, user, clave, rol))
+            self.conn.commit()
+            messagebox.showinfo("Éxito", f"Usuario '{user}' registrado.")
+            self.actualizar_tabla_usuarios()
+        except sqlite3.IntegrityError:
+            messagebox.showerror("Error", "El usuario ya existe.")
 
-                    if p["estado"] != "anulado":
-                        if col_h6.button("🚫 Anular", key=f"anular_{p['id']}"):
-                            with get_connection() as conn_an:
-                                c_an = conn_an.cursor()
-                                c_an.execute(
-                                    "UPDATE pedidos SET estado='anulado' WHERE id=?",
-                                    (p["id"],),
-                                )
-                                conn_an.commit()
-                            st.rerun()
-                    else:
-                        col_h6.error("ANULADO")
+    def actualizar_tabla_usuarios(self):
+        for w in self.scroll_tabla_u.winfo_children():
+            w.destroy()
 
-    with tab_usuarios:
-        col_u_form, col_u_tabla = st.columns([1, 1.5])
+        self.cursor.execute("SELECT id, nombre, usuario, rol FROM usuarios")
+        for u_id, nombre, user, rol in self.cursor.fetchall():
+            f_row = ctk.CTkFrame(self.scroll_tabla_u, fg_color="#0f172a")
+            f_row.pack(fill="x", padx=5, pady=3)
 
-        with col_u_form:
-            with st.container(border=True):
-                st.subheader("➕ Registrar Usuario")
-                u_nombre = st.text_input("Nombre Completo")
-                u_user = st.text_input("Nombre de Usuario")
-                u_clave = st.text_input("Contraseña", type="password")
-                u_rol = st.selectbox(
-                    "Rol / Cargo", ["mesero", "cocina", "caja", "multifuncion", "admin"]
-                )
+            ctk.CTkLabel(f_row, text=nombre, width=150, anchor="w").pack(side="left", padx=5)
+            ctk.CTkLabel(f_row, text=user, width=120, anchor="w", text_color="gray70").pack(side="left", padx=5)
+            ctk.CTkLabel(f_row, text=rol.upper(), width=110, font=ctk.CTkFont(weight="bold")).pack(side="left", padx=5)
 
-                if st.button("Guardar Usuario", type="primary"):
-                    if u_nombre and u_user and u_clave:
-                        try:
-                            with get_connection() as conn:
-                                c = conn.cursor()
-                                c.execute(
-                                    "INSERT INTO usuarios (nombre, usuario, clave, rol) VALUES (?, ?, ?, ?)",
-                                    (u_nombre, u_user, u_clave, u_rol),
-                                )
-                                conn.commit()
-                            st.success("Usuario creado con éxito.")
-                            st.rerun()
-                        except sqlite3.IntegrityError:
-                            st.error("El usuario ya existe.")
-                    else:
-                        st.warning("Completa los datos.")
+            if u_id != self.user_id_actual:
+                btn_del = ctk.CTkButton(f_row, text="🗑 Eliminar", width=75, fg_color="#ef4444", command=lambda i=u_id: self.eliminar_usuario(i))
+                btn_del.pack(side="right", padx=5)
 
-        with col_u_tabla:
-            st.subheader("👥 Personal en Sistema")
-            with get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT id, nombre, usuario, rol FROM usuarios"
-                )
-                users = cursor.fetchall()
+    def eliminar_usuario(self, u_id):
+        self.cursor.execute("DELETE FROM usuarios WHERE id = ?", (u_id,))
+        self.conn.commit()
+        self.actualizar_tabla_usuarios()
 
-            for u in users:
-                with st.container(border=True):
-                    c1, c2, c3, c4 = st.columns([2, 2, 2, 1])
-                    c1.write(f"**{u['nombre']}**")
-                    c2.write(f"<b>{u['usuario']}</b>", unsafe_allow_html=True)
-                    c3.write(u["rol"].upper())
-                    if c4.button("🗑️", key=f"del_user_{u['id']}"):
-                        with get_connection() as conn_del:
-                            c_del = conn_del.cursor()
-                            c_del.execute(
-                                "DELETE FROM usuarios WHERE id=?", (u["id"],)
-                            )
-                            conn_del.commit()
-                        st.rerun()
-
-    with tab_menu:
-        col_m_form, col_m_tabla = st.columns([1, 1.5])
-
-        with col_m_form:
-            with st.container(border=True):
-                st.subheader("➕ Registrar Producto")
-                p_nombre = st.text_input("Nombre del Producto")
-                p_precio = st.number_input(
-                    "Precio ($)", min_value=0.0, step=0.5
-                )
-                p_imagen = st.file_uploader(
-                    "Imagen", type=["jpg", "png", "jpeg", "webp"]
-                )
-
-                if st.button("Guardar Producto", type="primary"):
-                    if p_nombre and p_precio > 0:
-                        dest_path = ""
-                        if p_imagen is not None:
-                            nom_limpio = "".join(
-                                c
-                                for c in p_nombre
-                                if c.isalnum() or c in (" ", "_")
-                            ).rstrip()
-                            ext = os.path.splitext(p_imagen.name)[1]
-                            dest_path = os.path.join(
-                                IMG_DIR, f"prod_{nom_limpio.replace(' ', '_')}{ext}"
-                            )
-
-                            img = Image.open(p_imagen).convert("RGB")
-                            img.save(dest_path)
-
-                        with get_connection() as conn:
-                            c = conn.cursor()
-                            c.execute(
-                                "INSERT INTO productos (nombre, precio, categoria, icono, imagen_path) VALUES (?, ?, 'General', '🍔', ?)",
-                                (p_nombre, p_precio, dest_path),
-                            )
-                            conn.commit()
-                        st.success(f"Producto '{p_nombre}' guardado.")
-                        st.rerun()
-                    else:
-                        st.warning("Escribe nombre y precio.")
-
-        with col_m_tabla:
-            st.subheader("📋 Menú Registrado")
-            with get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT id, nombre, precio, imagen_path FROM productos"
-                )
-                prods_menu = cursor.fetchall()
-
-            for pm in prods_menu:
-                with st.container(border=True):
-                    c1, c2, c3, c4 = st.columns([1, 2, 2, 1])
-                    if pm["imagen_path"] and os.path.exists(pm["imagen_path"]):
-                        c1.image(pm["imagen_path"], width=40)
-                    else:
-                        c1.write("🍔")
-                    c2.write(f"**{pm['nombre']}**")
-                    c3.write(f"${pm['precio']:.2f}")
-                    if c4.button("🗑️", key=f"del_prod_{pm['id']}"):
-                        with get_connection() as conn_del_p:
-                            c_dp = conn_del_p.cursor()
-                            c_dp.execute(
-                                "DELETE FROM productos WHERE id=?", (pm["id"],)
-                            )
-                            conn_del_p.commit()
-                        st.rerun()
-
-
-# ---------------------------------------------------------
-# ENRUTADOR POR ROL
-# ---------------------------------------------------------
-rol = st.session_state.rol_actual
-if rol == "mesero":
-    vista_mesero()
-elif rol == "cocina":
-    vista_cocina()
-elif rol == "caja":
-    vista_caja()
-elif rol == "multifuncion":
-    vista_multifuncion()
-elif rol == "admin":
-    vista_admin()
+if __name__ == "__main__":
+    app = SistemaPOSPro()
+    app.mainloop()
