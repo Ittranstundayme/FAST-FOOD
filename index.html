@@ -115,13 +115,10 @@
                 <div id="kitchenOrders" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
             </section>
 
-            <!-- VISTA: REPORTES CON NUEVO BOTÓN DE DESCARGA -->
+            <!-- VISTA: REPORTES -->
             <section id="viewReportes" class="hidden space-y-6">
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h2 class="text-2xl font-bold text-emerald-400">📊 Reportes y Facturación</h2>
-                    <button onclick="generarFacturaCompletaContadoraPDF()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-lg">
-                        📄 Descargar Reporte PDF para Contadora
-                    </button>
                 </div>
                 
                 <div class="card p-4 flex flex-wrap gap-4 items-center">
@@ -146,7 +143,7 @@
                 </div>
 
                 <div class="card p-4">
-                    <h3 class="font-bold mb-3">📋 Historial de Ventas con Datos de Cliente y Pedido</h3>
+                    <h3 class="font-bold mb-3">📋 Historial de Ventas</h3>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-sm">
                             <thead class="bg-slate-700 text-slate-300">
@@ -157,8 +154,8 @@
                                     <th class="p-2">Cliente / Razón Social</th>
                                     <th class="p-2">RUC / Cédula</th>
                                     <th class="p-2">Teléfono</th>
-                                    <th class="p-2">Correo Electrónico</th>
-                                    <th class="p-2 w-1/4">Detalle del Pedido</th>
+                                    <th class="p-2">Correo</th>
+                                    <th class="p-2 w-1/4">Detalle</th>
                                     <th class="p-2">Método Pago</th>
                                     <th class="p-2">Total</th>
                                     <th class="p-2">Estado</th>
@@ -174,6 +171,39 @@
             <section id="viewAdmin" class="hidden space-y-6">
                 <h2 class="text-2xl font-bold text-purple-400">⚙️ Configuración del Sistema</h2>
 
+                <!-- GESTIÓN DE PRODUCTOS POR SECCIÓN -->
+                <div class="card p-6 space-y-4 border-l-4 border-emerald-500">
+                    <h3 class="font-bold text-lg text-emerald-400">🍔 Gestión de Productos por Sección</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <input type="text" id="newProdName" placeholder="Nombre del Producto" class="bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                        <input type="number" step="0.01" id="newProdPrice" placeholder="Precio ($)" class="bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                        <select id="newProdCategory" class="bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
+                            <!-- Categorías dinámicas -->
+                        </select>
+                        <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded p-2 text-sm">
+                            <input type="checkbox" id="newProdSauce" class="rounded border-slate-700 text-emerald-500 focus:ring-emerald-500">
+                            <label for="newProdSauce" class="text-xs text-slate-300">¿Salsa / Término?</label>
+                        </div>
+                    </div>
+                    <button onclick="addProduct()" class="btn-primary px-4 py-2 rounded text-sm w-full md:w-auto">➕ Guardar Producto</button>
+
+                    <div class="overflow-x-auto mt-4">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-700 text-slate-300">
+                                <tr>
+                                    <th class="p-2">Producto</th>
+                                    <th class="p-2">Precio</th>
+                                    <th class="p-2">Sección / Categoría</th>
+                                    <th class="p-2">Salsa Req.</th>
+                                    <th class="p-2">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productsTableBody" class="divide-y divide-slate-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- GESTIÓN DE USUARIOS -->
                 <div class="card p-6 space-y-4">
                     <h3 class="font-bold text-lg text-emerald-400">👥 Gestión de Usuarios y Personal</h3>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -205,6 +235,7 @@
                     </div>
                 </div>
 
+                <!-- SECCIONES Y SALSAS -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="card p-4 space-y-3">
                         <h3 class="font-bold">📁 Secciones / Categorías</h3>
@@ -569,246 +600,238 @@
             const store = tx.objectStore("pedidos");
             store.get(orderId).onsuccess = (e) => {
                 const order = e.target.result;
-                order.estado = "preparado";
+                order.estado = "listo";
                 store.put(order);
                 tx.oncomplete = () => renderCocina();
             };
         }
 
         function renderReports() {
-            const dateVal = document.getElementById("reportDate").value || new Date().toISOString().substring(0, 10);
-            document.getElementById("reportDate").value = dateVal;
-
+            const dateVal = document.getElementById("reportDate").value;
             const tx = db.transaction("pedidos", "readonly");
             tx.objectStore("pedidos").getAll().onsuccess = (e) => {
-                const all = e.target.result.filter(p => p.fecha_hora.startsWith(dateVal));
-                const cobrados = all.filter(p => p.estado === "cobrado");
-                
-                const totalMonto = cobrados.reduce((acc, p) => acc + p.total, 0);
-                document.getElementById("kpiTotal").innerText = `$${totalMonto.toFixed(2)}`;
-                document.getElementById("kpiCount").innerText = all.length;
+                let orders = e.target.result;
+                if(dateVal) orders = orders.filter(p => p.fecha_hora.startsWith(dateVal));
 
-                const breakdown = {};
+                const cobrados = orders.filter(p => p.estado === "cobrado");
+                const totalVentas = cobrados.reduce((acc, p) => acc + p.total, 0);
+
+                document.getElementById("kpiTotal").innerText = `$${totalVentas.toFixed(2)}`;
+                document.getElementById("kpiCount").innerText = cobrados.length;
+
+                const methods = {};
                 cobrados.forEach(p => {
-                    breakdown[p.metodo_pago] = (breakdown[p.metodo_pago] || 0) + p.total;
+                    methods[p.metodo_pago] = (methods[p.metodo_pago] || 0) + p.total;
                 });
 
-                document.getElementById("paymentBreakdown").innerHTML = Object.keys(breakdown).map(m => `
-                    <div class="bg-slate-900 p-3 rounded text-center">
-                        <div class="text-xs text-sky-400 font-bold">${m}</div>
-                        <div class="text-lg font-bold text-emerald-400">$${breakdown[m].toFixed(2)}</div>
+                document.getElementById("paymentBreakdown").innerHTML = Object.keys(methods).length ? Object.entries(methods).map(([method, amt]) => `
+                    <div class="bg-slate-900 p-3 rounded-lg text-center border border-slate-700">
+                        <span class="text-xs text-slate-400 block mb-1">${method}</span>
+                        <span class="text-lg font-bold text-emerald-400">$${amt.toFixed(2)}</span>
                     </div>
-                `).join("") || `<div class="text-xs text-slate-500">Sin ventas hoy.</div>`;
+                `).join("") : `<div class="text-slate-500 text-sm">Sin ventas registradas</div>`;
 
-                document.getElementById("reportTableBody").innerHTML = all.map(p => {
-                    const parsedItems = JSON.parse(p.items || "[]");
-                    const itemsFormatted = parsedItems.map(i => `<div class="text-xs">• ${i.nombre} <span class="text-emerald-400 font-semibold">($${i.precio.toFixed(2)})</span></div>`).join("");
-
+                document.getElementById("reportTableBody").innerHTML = orders.map(p => {
+                    const items = JSON.parse(p.items).map(i => i.nombre).join(", ");
                     return `
                         <tr>
-                            <td class="p-2 font-bold">#${p.id}</td>
+                            <td class="p-2">#${p.id}</td>
                             <td class="p-2 text-xs">${p.fecha_hora}</td>
                             <td class="p-2">${p.mesero}</td>
-                            <td class="p-2 font-medium">${p.fact_razon || p.cliente}</td>
-                            <td class="p-2 text-slate-300 font-mono">${p.fact_ruc || 'N/A'}</td>
-                            <td class="p-2 text-slate-300">${p.fact_phone || 'N/A'}</td>
-                            <td class="p-2 text-slate-300 text-xs">${p.fact_email || 'N/A'}</td>
-                            <td class="p-2 bg-slate-900/50 rounded my-1">${itemsFormatted}</td>
-                            <td class="p-2 text-sky-400">${p.metodo_pago}</td>
-                            <td class="p-2 text-emerald-400 font-bold">$${p.total.toFixed(2)}</td>
-                            <td class="p-2 font-bold ${p.estado === 'cobrado' ? 'text-emerald-400' : 'text-sky-400'}">${p.estado.toUpperCase()}</td>
+                            <td class="p-2">${p.fact_razon || p.cliente}</td>
+                            <td class="p-2">${p.fact_ruc || 'N/A'}</td>
+                            <td class="p-2">${p.fact_phone || 'N/A'}</td>
+                            <td class="p-2">${p.fact_email || 'N/A'}</td>
+                            <td class="p-2 text-xs">${items}</td>
+                            <td class="p-2">${p.metodo_pago}</td>
+                            <td class="p-2 font-bold text-emerald-400">$${p.total.toFixed(2)}</td>
+                            <td class="p-2"><span class="px-2 py-1 text-xs rounded font-bold ${p.estado === 'cobrado' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400'}">${p.estado}</span></td>
                         </tr>
                     `;
                 }).join("");
             };
         }
 
-        // NUEVA FUNCIÓN PDF DE CONTABILIDAD
-        function generarFacturaCompletaContadoraPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-            const dateVal = document.getElementById("reportDate").value || new Date().toISOString().substring(0, 10);
-
-            const tx = db.transaction("pedidos", "readonly");
-            tx.objectStore("pedidos").getAll().onsuccess = (e) => {
-                const all = e.target.result.filter(p => p.fecha_hora.startsWith(dateVal) && p.estado === "cobrado");
-
-                doc.setFontSize(16);
-                doc.setTextColor(16, 185, 129);
-                doc.text("FastFood POS Pro - Reporte Fiscal de Ventas e Ítems por Cliente", 14, 15);
-                
-                doc.setFontSize(9);
-                doc.setTextColor(100);
-                doc.text(`Fecha del Reporte: ${dateVal} | Generado por: ${currentUser.nombre} (${currentUser.rol.toUpperCase()})`, 14, 21);
-
-                const totalVentas = all.reduce((acc, p) => acc + p.total, 0);
-                const subtotalBase = totalVentas / 1.15;
-                const ivaMonto = totalVentas - subtotalBase;
-
-                // Métricas globales
-                doc.autoTable({
-                    startY: 25,
-                    head: [['Total Órdenes Cobradas', 'Subtotal Neto Estimado', 'IVA Estimado (15%)', 'TOTAL RECAUDADO (USD)']],
-                    body: [[
-                        `${all.length}`,
-                        `$${subtotalBase.toFixed(2)}`,
-                        `$${ivaMonto.toFixed(2)}`,
-                        `$${totalVentas.toFixed(2)}`
-                    ]],
-                    theme: 'grid',
-                    headStyles: { fillColor: [30, 41, 59] },
-                    styles: { halign: 'center', fontSize: 9 }
-                });
-
-                // Construcción de la tabla completa con el detalle de items por cliente
-                const tableData = all.map(p => {
-                    const parsedItems = JSON.parse(p.items || "[]");
-                    const itemsStr = parsedItems.map(i => `• ${i.nombre} -> $${i.precio.toFixed(2)}`).join("\n");
-
-                    return [
-                        `#${p.id}\n${p.fecha_hora.substring(11, 19)}`,
-                        p.fact_razon || p.cliente,
-                        p.fact_ruc || 'Consumidor Final',
-                        p.fact_phone || 'N/A',
-                        p.fact_email || 'N/A',
-                        itemsStr,
-                        p.metodo_pago,
-                        `$${p.total.toFixed(2)}`
-                    ];
-                });
-
-                doc.autoTable({
-                    startY: doc.lastAutoTable.finalY + 8,
-                    head: [['ID / Hora', 'Cliente / Razón Social', 'RUC / Cédula', 'Teléfono', 'Correo Electrónico', 'Detalle Individual de Ítems Consumidos', 'Forma Pago', 'Total']],
-                    body: tableData,
-                    theme: 'striped',
-                    headStyles: { fillColor: [16, 185, 129] },
-                    styles: { fontSize: 8, cellPadding: 3, verticalAlign: 'middle' },
-                    columnStyles: { 
-                        0: { cellWidth: 20 },
-                        1: { cellWidth: 35 },
-                        2: { cellWidth: 30 },
-                        3: { cellWidth: 25 },
-                        4: { cellWidth: 40 },
-                        5: { cellWidth: 80 },
-                        6: { cellWidth: 25 },
-                        7: { cellWidth: 20, fontStyle: 'bold', halign: 'right' }
-                    }
-                });
-
-                doc.save(`Facturacion_Detallada_Contadora_${dateVal}.pdf`);
-            };
+        function renderAdminConfig() {
+            renderUsersTable();
+            renderCategoriesList();
+            renderSaucesList();
+            renderProductsTable();
         }
 
-        function renderAdminConfig() {
-            renderUsers();
+        // --- GESTIÓN DE PRODUCTOS ---
+        function renderProductsTable() {
+            const table = document.getElementById("productsTableBody");
+            const catSelect = document.getElementById("newProdCategory");
+
+            // Cargar Categorías en el Select
             const txCat = db.transaction("categorias", "readonly");
             txCat.objectStore("categorias").getAll().onsuccess = (e) => {
-                document.getElementById("catList").innerHTML = e.target.result.map(c => `
-                    <li class="py-2 flex justify-between items-center">
-                        <span>${c.nombre}</span>
-                        <button onclick="deleteCategory(${c.id})" class="text-red-400 text-xs font-bold">Eliminar</button>
-                    </li>
-                `).join("");
+                const cats = e.target.result;
+                catSelect.innerHTML = cats.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join("");
             };
 
-            const txSauce = db.transaction("salsas", "readonly");
-            txSauce.objectStore("salsas").getAll().onsuccess = (e) => {
-                document.getElementById("sauceList").innerHTML = e.target.result.map(s => `
-                    <li class="py-2 flex justify-between items-center">
-                        <span>${s.nombre}</span>
-                        <button onclick="deleteSauce(${s.id})" class="text-red-400 text-xs font-bold">Eliminar</button>
-                    </li>
+            // Cargar Lista de Productos
+            const txProd = db.transaction("productos", "readonly");
+            txProd.objectStore("productos").getAll().onsuccess = (e) => {
+                const prods = e.target.result;
+                table.innerHTML = prods.map(p => `
+                    <tr>
+                        <td class="p-2 font-bold">${p.nombre}</td>
+                        <td class="p-2 text-emerald-400 font-bold">$${p.precio.toFixed(2)}</td>
+                        <td class="p-2"><span class="bg-slate-700 px-2 py-0.5 rounded text-xs">${p.categoria}</span></td>
+                        <td class="p-2">${p.requiere_salsa ? '✅ Sí' : '❌ No'}</td>
+                        <td class="p-2"><button onclick="deleteProduct(${p.id})" class="text-red-400 hover:text-red-300 font-bold text-xs">Eliminar</button></td>
+                    </tr>
                 `).join("");
             };
         }
 
-        function renderUsers() {
+        function addProduct() {
+            const name = document.getElementById("newProdName").value.trim();
+            const price = parseFloat(document.getElementById("newProdPrice").value);
+            const category = document.getElementById("newProdCategory").value;
+            const requiresSauce = document.getElementById("newProdSauce").checked;
+
+            if(!name || isNaN(price) || price <= 0 || !category) {
+                return alert("Ingresa un nombre, un precio válido y asigna una categoría.");
+            }
+
+            const tx = db.transaction("productos", "readwrite");
+            tx.objectStore("productos").add({
+                nombre: name,
+                precio: price,
+                categoria: category,
+                requiere_salsa: requiresSauce
+            });
+
+            tx.oncomplete = () => {
+                document.getElementById("newProdName").value = "";
+                document.getElementById("newProdPrice").value = "";
+                document.getElementById("newProdSauce").checked = false;
+                renderProductsTable();
+            };
+        }
+
+        function deleteProduct(id) {
+            if(!confirm("¿Eliminar este producto?")) return;
+            const tx = db.transaction("productos", "readwrite");
+            tx.objectStore("productos").delete(id);
+            tx.oncomplete = () => renderProductsTable();
+        }
+
+        // --- GESTIÓN DE USUARIOS ---
+        function renderUsersTable() {
+            const table = document.getElementById("usersTableBody");
             const tx = db.transaction("usuarios", "readonly");
             tx.objectStore("usuarios").getAll().onsuccess = (e) => {
                 const users = e.target.result;
-                document.getElementById("usersTableBody").innerHTML = users.map(u => `
+                table.innerHTML = users.map(u => `
                     <tr>
-                        <td class="p-2 font-medium">${u.nombre}</td>
-                        <td class="p-2 text-slate-400">${u.usuario}</td>
-                        <td class="p-2"><span class="bg-slate-700 px-2 py-1 rounded text-xs font-bold uppercase">${u.rol}</span></td>
-                        <td class="p-2">
-                            ${u.usuario !== currentUser.usuario ? `<button onclick="deleteUser('${u.usuario}')" class="text-red-400 hover:text-red-300 font-bold text-xs">Eliminar</button>` : '<span class="text-xs text-slate-500">Actual</span>'}
-                        </td>
+                        <td class="p-2">${u.nombre}</td>
+                        <td class="p-2">${u.usuario}</td>
+                        <td class="p-2"><span class="bg-slate-700 px-2 py-0.5 rounded text-xs font-bold uppercase">${u.rol}</span></td>
+                        <td class="p-2"><button onclick="deleteUser('${u.usuario}')" class="text-red-400 hover:text-red-300 font-bold text-xs">Eliminar</button></td>
                     </tr>
                 `).join("");
             };
         }
 
         function addUser() {
-            const nombre = document.getElementById("newFullName").value.trim();
-            const usuario = document.getElementById("newUsername").value.trim();
-            const clave = document.getElementById("newPassword").value.trim();
-            const rol = document.getElementById("newRole").value;
+            const name = document.getElementById("newFullName").value.trim();
+            const username = document.getElementById("newUsername").value.trim();
+            const pass = document.getElementById("newPassword").value.trim();
+            const role = document.getElementById("newRole").value;
 
-            if (!nombre || !usuario || !clave) return alert("Completa todos los campos para crear el usuario.");
+            if(!name || !username || !pass) return alert("Completa todos los campos de usuario.");
 
             const tx = db.transaction("usuarios", "readwrite");
-            const store = tx.objectStore("usuarios");
-            
-            store.get(usuario).onsuccess = (e) => {
-                if(e.target.result) {
-                    alert("El nombre de usuario ya existe.");
-                } else {
-                    store.add({ usuario, clave, nombre, rol });
-                    tx.oncomplete = () => {
-                        document.getElementById("newFullName").value = "";
-                        document.getElementById("newUsername").value = "";
-                        document.getElementById("newPassword").value = "";
-                        renderUsers();
-                        alert("Usuario registrado con éxito.");
-                    };
-                }
+            tx.objectStore("usuarios").add({ usuario: username, clave: pass, nombre: name, rol: role });
+            tx.oncomplete = () => {
+                document.getElementById("newFullName").value = "";
+                document.getElementById("newUsername").value = "";
+                document.getElementById("newPassword").value = "";
+                renderUsersTable();
             };
         }
 
         function deleteUser(username) {
-            if(confirm(`¿Seguro que deseas eliminar al usuario '${username}'?`)) {
-                const tx = db.transaction("usuarios", "readwrite");
-                tx.objectStore("usuarios").delete(username);
-                tx.oncomplete = () => renderUsers();
-            }
+            if(username === "admin") return alert("No se puede eliminar el usuario principal admin.");
+            if(!confirm(`¿Eliminar usuario ${username}?`)) return;
+
+            const tx = db.transaction("usuarios", "readwrite");
+            tx.objectStore("usuarios").delete(username);
+            tx.oncomplete = () => renderUsersTable();
+        }
+
+        // --- GESTIÓN DE CATEGORÍAS ---
+        function renderCategoriesList() {
+            const list = document.getElementById("catList");
+            const tx = db.transaction("categorias", "readonly");
+            tx.objectStore("categorias").getAll().onsuccess = (e) => {
+                const cats = e.target.result;
+                list.innerHTML = cats.map(c => `
+                    <li class="py-2 flex justify-between items-center">
+                        <span>${c.nombre}</span>
+                        <button onclick="deleteCategory(${c.id})" class="text-red-400 hover:text-red-300 font-bold text-xs">Eliminar</button>
+                    </li>
+                `).join("");
+            };
         }
 
         function addCategory() {
             const name = document.getElementById("newCatName").value.trim();
-            if (name) {
-                const tx = db.transaction("categorias", "readwrite");
-                tx.objectStore("categorias").add({ nombre: name });
-                tx.oncomplete = () => {
-                    document.getElementById("newCatName").value = "";
-                    renderAdminConfig();
-                };
-            }
+            if(!name) return;
+            const tx = db.transaction("categorias", "readwrite");
+            tx.objectStore("categorias").add({ nombre: name });
+            tx.oncomplete = () => {
+                document.getElementById("newCatName").value = "";
+                renderCategoriesList();
+                renderProductsTable(); // Actualiza el selector de categorías del formulario de productos
+            };
         }
 
         function deleteCategory(id) {
+            if(!confirm("¿Eliminar esta sección?")) return;
             const tx = db.transaction("categorias", "readwrite");
             tx.objectStore("categorias").delete(id);
-            tx.oncomplete = () => renderAdminConfig();
+            tx.oncomplete = () => {
+                renderCategoriesList();
+                renderProductsTable();
+            };
+        }
+
+        // --- GESTIÓN DE SALSAS ---
+        function renderSaucesList() {
+            const list = document.getElementById("sauceList");
+            const tx = db.transaction("salsas", "readonly");
+            tx.objectStore("salsas").getAll().onsuccess = (e) => {
+                const sauces = e.target.result;
+                list.innerHTML = sauces.map(s => `
+                    <li class="py-2 flex justify-between items-center">
+                        <span>${s.nombre}</span>
+                        <button onclick="deleteSauce(${s.id})" class="text-red-400 hover:text-red-300 font-bold text-xs">Eliminar</button>
+                    </li>
+                `).join("");
+            };
         }
 
         function addSauce() {
             const name = document.getElementById("newSauceName").value.trim();
-            if (name) {
-                const tx = db.transaction("salsas", "readwrite");
-                tx.objectStore("salsas").add({ nombre: name });
-                tx.oncomplete = () => {
-                    document.getElementById("newSauceName").value = "";
-                    renderAdminConfig();
-                };
-            }
+            if(!name) return;
+            const tx = db.transaction("salsas", "readwrite");
+            tx.objectStore("salsas").add({ nombre: name });
+            tx.oncomplete = () => {
+                document.getElementById("newSauceName").value = "";
+                renderSaucesList();
+            };
         }
 
         function deleteSauce(id) {
+            if(!confirm("¿Eliminar esta salsa o término?")) return;
             const tx = db.transaction("salsas", "readwrite");
             tx.objectStore("salsas").delete(id);
-            tx.oncomplete = () => renderAdminConfig();
+            tx.oncomplete = () => renderSaucesList();
         }
     </script>
 </body>
