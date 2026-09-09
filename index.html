@@ -115,11 +115,11 @@
                 <div id="kitchenOrders" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
             </section>
 
-            <!-- VISTA: REPORTES CON DATOS COMPLETOS DE CLIENTES -->
+            <!-- VISTA: REPORTES CON NUEVO BOTÓN DE DESCARGA -->
             <section id="viewReportes" class="hidden space-y-6">
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h2 class="text-2xl font-bold text-emerald-400">📊 Reportes y Facturación</h2>
-                    <button onclick="exportContadoraPDF()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2">
+                    <button onclick="generarFacturaCompletaContadoraPDF()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-lg">
                         📄 Descargar Reporte PDF para Contadora
                     </button>
                 </div>
@@ -249,7 +249,7 @@
 
     <script>
         let db;
-        const request = indexedDB.open("FastFoodPOS", 4);
+        const request = indexedDB.open("FastFoodPOS", 5);
 
         request.onupgradeneeded = (e) => {
             db = e.target.result;
@@ -623,8 +623,8 @@
             };
         }
 
-        // EXPORTAR PDF CONTABLE COMPLETO CON DESGLOSE POR PERSONA E ÍTEMS
-        function exportContadoraPDF() {
+        // NUEVA FUNCIÓN PDF DE CONTABILIDAD
+        function generarFacturaCompletaContadoraPDF() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
             const dateVal = document.getElementById("reportDate").value || new Date().toISOString().substring(0, 10);
@@ -645,7 +645,7 @@
                 const subtotalBase = totalVentas / 1.15;
                 const ivaMonto = totalVentas - subtotalBase;
 
-                // Tabla Métricas Globales
+                // Métricas globales
                 doc.autoTable({
                     startY: 25,
                     head: [['Total Órdenes Cobradas', 'Subtotal Neto Estimado', 'IVA Estimado (15%)', 'TOTAL RECAUDADO (USD)']],
@@ -660,7 +660,7 @@
                     styles: { halign: 'center', fontSize: 9 }
                 });
 
-                // Construcción de Fichas Individuales de Clientes
+                // Construcción de la tabla completa con el detalle de items por cliente
                 const tableData = all.map(p => {
                     const parsedItems = JSON.parse(p.items || "[]");
                     const itemsStr = parsedItems.map(i => `• ${i.nombre} -> $${i.precio.toFixed(2)}`).join("\n");
@@ -696,7 +696,7 @@
                     }
                 });
 
-                doc.save(`Reporte_Contadora_Completo_${dateVal}.pdf`);
+                doc.save(`Facturacion_Detallada_Contadora_${dateVal}.pdf`);
             };
         }
 
