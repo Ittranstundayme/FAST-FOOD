@@ -119,6 +119,9 @@
             <section id="viewReportes" class="hidden space-y-6">
                 <div class="flex justify-between items-center flex-wrap gap-4">
                     <h2 class="text-2xl font-bold text-emerald-400">📊 Reportes y Facturación</h2>
+                    <button onclick="generarFacturaCompletaContadoraPDF()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 shadow-lg">
+                        📄 Descargar Reporte PDF para Contadora
+                    </button>
                 </div>
                 
                 <div class="card p-4 flex flex-wrap gap-4 items-center">
@@ -171,15 +174,14 @@
             <section id="viewAdmin" class="hidden space-y-6">
                 <h2 class="text-2xl font-bold text-purple-400">⚙️ Configuración del Sistema</h2>
 
-                <!-- GESTIÓN DE PRODUCTOS POR SECCIÓN -->
+                <!-- GESTIÓN DE PRODUCTOS POR SECCIÓN CON IMAGEN -->
                 <div class="card p-6 space-y-4 border-l-4 border-emerald-500">
                     <h3 class="font-bold text-lg text-emerald-400">🍔 Gestión de Productos por Sección</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
                         <input type="text" id="newProdName" placeholder="Nombre del Producto" class="bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
                         <input type="number" step="0.01" id="newProdPrice" placeholder="Precio ($)" class="bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
-                        <select id="newProdCategory" class="bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white">
-                            <!-- Categorías dinámicas -->
-                        </select>
+                        <select id="newProdCategory" class="bg-slate-900 border border-slate-700 rounded p-2 text-sm text-white"></select>
+                        <input type="file" id="newProdImage" accept="image/*" class="bg-slate-900 border border-slate-700 rounded p-1.5 text-xs text-slate-300">
                         <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded p-2 text-sm">
                             <input type="checkbox" id="newProdSauce" class="rounded border-slate-700 text-emerald-500 focus:ring-emerald-500">
                             <label for="newProdSauce" class="text-xs text-slate-300">¿Salsa / Término?</label>
@@ -191,6 +193,7 @@
                         <table class="w-full text-left text-sm">
                             <thead class="bg-slate-700 text-slate-300">
                                 <tr>
+                                    <th class="p-2">Imagen</th>
                                     <th class="p-2">Producto</th>
                                     <th class="p-2">Precio</th>
                                     <th class="p-2">Sección / Categoría</th>
@@ -280,7 +283,7 @@
 
     <script>
         let db;
-        const request = indexedDB.open("FastFoodPOS", 5);
+        const request = indexedDB.open("FastFoodPOS", 6);
 
         request.onupgradeneeded = (e) => {
             db = e.target.result;
@@ -315,8 +318,8 @@
                     storeSauce.add({ nombre: "Sin Salsa" });
 
                     const storeProd = tx.objectStore("productos");
-                    storeProd.add({ nombre: "Porción de Alitas (6u)", precio: 5.50, categoria: "Alitas & Entradas", requiere_salsa: true });
-                    storeProd.add({ nombre: "Porción de Papas", precio: 1.50, categoria: "Porciones & Acompañantes", requiere_salsa: false });
+                    storeProd.add({ nombre: "Porción de Alitas (6u)", precio: 5.50, categoria: "Alitas & Entradas", requiere_salsa: true, imagen: "" });
+                    storeProd.add({ nombre: "Porción de Papas", precio: 1.50, categoria: "Porciones & Acompañantes", requiere_salsa: false, imagen: "" });
                 }
             }
         }
@@ -422,10 +425,11 @@
                     prods = prods.filter(p => p.categoria === catSelect.value);
                 }
                 catalogGrid.innerHTML = prods.map(p => `
-                    <div class="card p-4 flex flex-col justify-between text-center">
-                        <div class="font-bold mb-1">${p.nombre}</div>
-                        <div class="text-emerald-400 font-bold mb-3">$${p.precio.toFixed(2)}</div>
-                        <button onclick="handleAddToCart(${p.id}, '${p.nombre}', ${p.precio}, ${p.requiere_salsa})" class="btn-primary py-1.5 px-3 rounded text-xs">Agregar +</button>
+                    <div class="card p-3 flex flex-col justify-between items-center text-center">
+                        ${p.imagen ? `<img src="${p.imagen}" class="w-full h-24 object-cover rounded-lg mb-2 border border-slate-700">` : `<div class="w-full h-24 bg-slate-800 rounded-lg flex items-center justify-center text-2xl mb-2 text-slate-600">🍔</div>`}
+                        <div class="font-bold text-sm mb-1">${p.nombre}</div>
+                        <div class="text-emerald-400 font-bold mb-2">$${p.precio.toFixed(2)}</div>
+                        <button onclick="handleAddToCart(${p.id}, '${p.nombre}', ${p.precio}, ${p.requiere_salsa})" class="w-full btn-primary py-1 px-2 rounded text-xs">Agregar +</button>
                     </div>
                 `).join("");
             };
@@ -652,6 +656,74 @@
             };
         }
 
+        // --- FUNCIÓN GENERAR REPORTE PDF CONTADORA ---
+        function generarFacturaCompletaContadoraPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+            const dateVal = document.getElementById("reportDate").value;
+
+            const tx = db.transaction("pedidos", "readonly");
+            tx.objectStore("pedidos").getAll().onsuccess = (e) => {
+                let orders = e.target.result;
+                if(dateVal) {
+                    orders = orders.filter(p => p.fecha_hora.startsWith(dateVal));
+                }
+
+                const cobrados = orders.filter(p => p.estado === "cobrado");
+                if (cobrados.length === 0) {
+                    alert("No existen ventas cobradas en el filtro seleccionado para generar el reporte.");
+                    return;
+                }
+
+                // Encabezado del PDF
+                doc.setFontSize(18);
+                doc.setTextColor(16, 185, 129); // Emerald color
+                doc.text("⚡ FastFood POS Pro - Reporte Contable de Ventas", 14, 15);
+
+                doc.setFontSize(10);
+                doc.setTextColor(100);
+                const fechaTexto = dateVal ? `Fecha filtrada: ${dateVal}` : "Todas las fechas";
+                doc.text(`${fechaTexto} | Generado el: ${new Date().toLocaleString()}`, 14, 22);
+
+                let totalVentas = 0;
+                const rows = cobrados.map(p => {
+                    totalVentas += p.total;
+                    const itemsText = JSON.parse(p.items).map(i => i.nombre).join(", ");
+                    return [
+                        `#${p.id}`,
+                        p.fecha_hora,
+                        p.fact_razon || p.cliente,
+                        p.fact_ruc || 'Consumidor Final',
+                        p.fact_phone || 'N/A',
+                        p.fact_email || 'N/A',
+                        itemsText,
+                        p.metodo_pago,
+                        `$${p.total.toFixed(2)}`
+                    ];
+                });
+
+                // Crear Tabla PDF
+                doc.autoTable({
+                    startY: 28,
+                    head: [['ID', 'Fecha/Hora', 'Cliente / Razón Social', 'RUC / Cédula', 'Teléfono', 'Correo', 'Detalle Pedido', 'Forma Pago', 'Total']],
+                    body: rows,
+                    styles: { fontSize: 8, cellPadding: 2 },
+                    headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255] },
+                    alternateRowStyles: { fillColor: [240, 243, 246] }
+                });
+
+                // Resumen Final al pie del documento
+                const finalY = doc.lastAutoTable.finalY + 10;
+                doc.setFontSize(12);
+                doc.setTextColor(0);
+                doc.text(`Total Registros: ${cobrados.length}`, 14, finalY);
+                doc.text(`Monto Total Cobrado: $${totalVentas.toFixed(2)}`, 14, finalY + 6);
+
+                // Guardar / Descargar PDF
+                doc.save(`Reporte_Contadora_${dateVal || 'General'}.pdf`);
+            };
+        }
+
         function renderAdminConfig() {
             renderUsersTable();
             renderCategoriesList();
@@ -677,6 +749,9 @@
                 const prods = e.target.result;
                 table.innerHTML = prods.map(p => `
                     <tr>
+                        <td class="p-2">
+                            ${p.imagen ? `<img src="${p.imagen}" class="w-10 h-10 object-cover rounded">` : `<span class="text-xs text-slate-500">Sin Foto</span>`}
+                        </td>
                         <td class="p-2 font-bold">${p.nombre}</td>
                         <td class="p-2 text-emerald-400 font-bold">$${p.precio.toFixed(2)}</td>
                         <td class="p-2"><span class="bg-slate-700 px-2 py-0.5 rounded text-xs">${p.categoria}</span></td>
@@ -687,14 +762,20 @@
             };
         }
 
-        function addProduct() {
+        async function addProduct() {
             const name = document.getElementById("newProdName").value.trim();
             const price = parseFloat(document.getElementById("newProdPrice").value);
             const category = document.getElementById("newProdCategory").value;
             const requiresSauce = document.getElementById("newProdSauce").checked;
+            const imageFile = document.getElementById("newProdImage").files[0];
 
             if(!name || isNaN(price) || price <= 0 || !category) {
                 return alert("Ingresa un nombre, un precio válido y asigna una categoría.");
+            }
+
+            let imageBase64 = "";
+            if (imageFile) {
+                imageBase64 = await convertFileToBase64(imageFile);
             }
 
             const tx = db.transaction("productos", "readwrite");
@@ -702,15 +783,26 @@
                 nombre: name,
                 precio: price,
                 categoria: category,
-                requiere_salsa: requiresSauce
+                requiere_salsa: requiresSauce,
+                imagen: imageBase64
             });
 
             tx.oncomplete = () => {
                 document.getElementById("newProdName").value = "";
                 document.getElementById("newProdPrice").value = "";
                 document.getElementById("newProdSauce").checked = false;
+                document.getElementById("newProdImage").value = "";
                 renderProductsTable();
             };
+        }
+
+        function convertFileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
         }
 
         function deleteProduct(id) {
@@ -787,7 +879,7 @@
             tx.oncomplete = () => {
                 document.getElementById("newCatName").value = "";
                 renderCategoriesList();
-                renderProductsTable(); // Actualiza el selector de categorías del formulario de productos
+                renderProductsTable();
             };
         }
 
