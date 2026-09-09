@@ -174,6 +174,22 @@
             <section id="viewAdmin" class="hidden space-y-6">
                 <h2 class="text-2xl font-bold text-purple-400">⚙️ Configuración del Sistema</h2>
 
+                <!-- SECCIÓN RESPALDOS: EXPORTAR E IMPORTAR INVENTARIO -->
+                <div class="card p-6 border-l-4 border-sky-500 space-y-3">
+                    <h3 class="font-bold text-lg text-sky-400">💾 Respaldos de Inventario y Secciones</h3>
+                    <p class="text-xs text-slate-400">Exporta o importa el catálogo de productos, fotos y secciones para crear copias de seguridad o transferirlos a otro equipo.</p>
+                    <div class="flex flex-wrap gap-4 items-center pt-2">
+                        <button onclick="exportarInventarioJSON()" class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg font-bold text-sm">
+                            📤 Exportar Inventario (Backup JSON)
+                        </button>
+                        <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg p-2">
+                            <label class="text-xs font-bold text-slate-300">📥 Importar Respaldo:</label>
+                            <input type="file" id="importFile" accept=".json" class="text-xs text-slate-300">
+                            <button onclick="importarInventarioJSON()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded font-bold text-xs">Cargar</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- GESTIÓN DE PRODUCTOS POR SECCIÓN CON IMAGEN -->
                 <div class="card p-6 space-y-4 border-l-4 border-emerald-500">
                     <h3 class="font-bold text-lg text-emerald-400">🍔 Gestión de Productos por Sección</h3>
@@ -656,7 +672,6 @@
             };
         }
 
-        // --- FUNCIÓN GENERAR REPORTE PDF CONTADORA ---
         function generarFacturaCompletaContadoraPDF() {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
@@ -665,19 +680,13 @@
             const tx = db.transaction("pedidos", "readonly");
             tx.objectStore("pedidos").getAll().onsuccess = (e) => {
                 let orders = e.target.result;
-                if(dateVal) {
-                    orders = orders.filter(p => p.fecha_hora.startsWith(dateVal));
-                }
+                if(dateVal) orders = orders.filter(p => p.fecha_hora.startsWith(dateVal));
 
                 const cobrados = orders.filter(p => p.estado === "cobrado");
-                if (cobrados.length === 0) {
-                    alert("No existen ventas cobradas en el filtro seleccionado para generar el reporte.");
-                    return;
-                }
+                if (cobrados.length === 0) return alert("No existen ventas cobradas para generar el reporte.");
 
-                // Encabezado del PDF
                 doc.setFontSize(18);
-                doc.setTextColor(16, 185, 129); // Emerald color
+                doc.setTextColor(16, 185, 129);
                 doc.text("⚡ FastFood POS Pro - Reporte Contable de Ventas", 14, 15);
 
                 doc.setFontSize(10);
@@ -690,19 +699,12 @@
                     totalVentas += p.total;
                     const itemsText = JSON.parse(p.items).map(i => i.nombre).join(", ");
                     return [
-                        `#${p.id}`,
-                        p.fecha_hora,
-                        p.fact_razon || p.cliente,
-                        p.fact_ruc || 'Consumidor Final',
-                        p.fact_phone || 'N/A',
-                        p.fact_email || 'N/A',
-                        itemsText,
-                        p.metodo_pago,
-                        `$${p.total.toFixed(2)}`
+                        `#${p.id}`, p.fecha_hora, p.fact_razon || p.cliente,
+                        p.fact_ruc || 'Consumidor Final', p.fact_phone || 'N/A',
+                        p.fact_email || 'N/A', itemsText, p.metodo_pago, `$${p.total.toFixed(2)}`
                     ];
                 });
 
-                // Crear Tabla PDF
                 doc.autoTable({
                     startY: 28,
                     head: [['ID', 'Fecha/Hora', 'Cliente / Razón Social', 'RUC / Cédula', 'Teléfono', 'Correo', 'Detalle Pedido', 'Forma Pago', 'Total']],
@@ -712,16 +714,84 @@
                     alternateRowStyles: { fillColor: [240, 243, 246] }
                 });
 
-                // Resumen Final al pie del documento
                 const finalY = doc.lastAutoTable.finalY + 10;
                 doc.setFontSize(12);
                 doc.setTextColor(0);
                 doc.text(`Total Registros: ${cobrados.length}`, 14, finalY);
                 doc.text(`Monto Total Cobrado: $${totalVentas.toFixed(2)}`, 14, finalY + 6);
 
-                // Guardar / Descargar PDF
                 doc.save(`Reporte_Contadora_${dateVal || 'General'}.pdf`);
             };
+        }
+
+        // --- FUNCIONES DE EXPORTACIÓN E IMPORTACIÓN DE INVENTARIO ---
+        function exportarInventarioJSON() {
+            const tx = db.transaction(["productos", "categorias", "salsas"], "readonly");
+            const backupData = {};
+
+            tx.objectStore("categorias").getAll().onsuccess = (e1) => {
+                backupData.categorias = e1.target.result;
+                tx.objectStore("salsas").getAll().onsuccess = (e2) => {
+                    backupData.salsas = e2.target.result;
+                    tx.objectStore("productos").getAll().onsuccess = (e3) => {
+                        backupData.productos = e3.target.result;
+
+                        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+                        const downloadAnchor = document.createElement('a');
+                        downloadAnchor.setAttribute("href", dataStr);
+                        downloadAnchor.setAttribute("download", `Respaldo_Inventario_POS_${new Date().toISOString().slice(0,10)}.json`);
+                        document.body.appendChild(downloadAnchor);
+                        downloadAnchor.click();
+                        downloadAnchor.remove();
+                    };
+                };
+            };
+        }
+
+        function importarInventarioJSON() {
+            const fileInput = document.getElementById("importFile");
+            const file = fileInput.files[0];
+            if (!file) return alert("Por favor, selecciona un archivo .json de respaldo.");
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (!data.productos || !data.categorias) {
+                        return alert("El archivo no tiene la estructura correcta de inventario.");
+                    }
+
+                    if (!confirm("Esta acción reemplazará las categorías, salsas y productos actuales. ¿Deseas continuar?")) return;
+
+                    const tx = db.transaction(["productos", "categorias", "salsas"], "readwrite");
+                    
+                    // Limpiar datos actuales
+                    tx.objectStore("categorias").clear();
+                    tx.objectStore("salsas").clear();
+                    tx.objectStore("productos").clear();
+
+                    // Insertar nuevos datos
+                    data.categorias.forEach(c => tx.objectStore("categorias").add({ nombre: c.nombre }));
+                    if (data.salsas) data.salsas.forEach(s => tx.objectStore("salsas").add({ nombre: s.nombre }));
+                    data.productos.forEach(p => tx.objectStore("productos").add({
+                        nombre: p.nombre,
+                        precio: p.precio,
+                        categoria: p.categoria,
+                        requiere_salsa: p.requiere_salsa,
+                        imagen: p.imagen || ""
+                    }));
+
+                    tx.oncomplete = () => {
+                        alert("¡Inventario e Secciones importados exitosamente!");
+                        fileInput.value = "";
+                        renderAdminConfig();
+                    };
+
+                } catch (err) {
+                    alert("Ocurrió un error al leer el archivo JSON.");
+                }
+            };
+            reader.readAsText(file);
         }
 
         function renderAdminConfig() {
@@ -736,14 +806,12 @@
             const table = document.getElementById("productsTableBody");
             const catSelect = document.getElementById("newProdCategory");
 
-            // Cargar Categorías en el Select
             const txCat = db.transaction("categorias", "readonly");
             txCat.objectStore("categorias").getAll().onsuccess = (e) => {
                 const cats = e.target.result;
                 catSelect.innerHTML = cats.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join("");
             };
 
-            // Cargar Lista de Productos
             const txProd = db.transaction("productos", "readonly");
             txProd.objectStore("productos").getAll().onsuccess = (e) => {
                 const prods = e.target.result;
