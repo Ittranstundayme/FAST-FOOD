@@ -174,7 +174,7 @@
             <section id="viewAdmin" class="hidden space-y-6">
                 <h2 class="text-2xl font-bold text-purple-400">⚙️ Configuración del Sistema</h2>
 
-                <!-- SECCIÓN DE RESPALDOS (COLOCADA AL INICIO) -->
+                <!-- SECCIÓN DE RESPALDOS -->
                 <div class="card p-6 border-l-4 border-sky-500 space-y-3">
                     <h3 class="font-bold text-lg text-sky-400">💾 Respaldos de Inventario y Secciones</h3>
                     <p class="text-xs text-slate-400">Exporta o importa el catálogo de productos, fotos y secciones para crear copias de seguridad o transferirlos a otro equipo.</p>
@@ -296,6 +296,9 @@
             </div>
         </div>
     </div>
+
+    <!-- IFRAME OCULTO PARA IMPRESIÓN DE TICKETS -->
+    <iframe id="printFrame" style="display:none;"></iframe>
 
     <script>
         let db;
@@ -526,8 +529,7 @@
             const total = cart.reduce((acc, i) => acc + i.precio, 0);
             const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-            const tx = db.transaction("pedidos", "readwrite");
-            tx.objectStore("pedidos").add({
+            const orderData = {
                 cliente: client,
                 fact_ruc: ruc || "Consumidor Final",
                 fact_razon: razon || client,
@@ -539,9 +541,16 @@
                 mesero: currentUser.nombre,
                 metodo_pago: "Efectivo",
                 fecha_hora: now
-            });
+            };
 
-            tx.oncomplete = () => {
+            const tx = db.transaction("pedidos", "readwrite");
+            const req = tx.objectStore("pedidos").add(orderData);
+
+            req.onsuccess = (e) => {
+                const insertedId = e.target.result;
+                // IMPRIMIR TICKET DE COCINA AUTOMÁTICAMENTE
+                imprimirTicketCocina(insertedId, client, cart, currentUser.nombre, now);
+
                 cart = [];
                 document.getElementById("orderClient").value = "";
                 document.getElementById("factRuc").value = "";
@@ -549,8 +558,83 @@
                 document.getElementById("factPhone").value = "";
                 document.getElementById("factEmail").value = "";
                 renderCart();
-                alert("¡Pedido registrado exitosamente!");
             };
+        }
+
+        // --- FUNCIÓN DE IMPRESIÓN PARA TICKET DE COCINA ---
+        function imprimirTicketCocina(orderId, cliente, items, mesero, fechaHora) {
+            const iframe = document.getElementById('printFrame');
+            const doc = iframe.contentWindow.document;
+
+            const itemsHtml = items.map(item => `
+                <div class="item">
+                    <span class="qty">1x</span>
+                    <span class="name">${item.nombre}</span>
+                </div>
+            `).join("");
+
+            const ticketContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        @page { size: 80mm auto; margin: 0mm; }
+                        body { 
+                            font-family: 'Courier New', Courier, monospace; 
+                            width: 72mm; 
+                            margin: 0 auto; 
+                            padding: 5mm 0;
+                            color: #000;
+                            background: #fff;
+                        }
+                        .text-center { text-align: center; }
+                        .text-bold { font-weight: bold; }
+                        .header { border-bottom: 2px dashed #000; padding-bottom: 5px; margin-bottom: 8px; }
+                        .title { font-size: 18px; font-weight: bold; margin: 0; }
+                        .subtitle { font-size: 14px; margin: 2px 0; }
+                        .meta { font-size: 12px; margin-bottom: 6px; }
+                        .items { border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px; }
+                        .item { font-size: 15px; font-weight: bold; margin: 6px 0; display: flex; }
+                        .qty { width: 30px; }
+                        .name { flex: 1; word-break: break-word; }
+                        .footer { font-size: 11px; text-align: center; margin-top: 10px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header text-center">
+                        <div class="title">🔥 COMANDA COCINA 🔥</div>
+                        <div class="subtitle">ORDEN #${orderId}</div>
+                    </div>
+                    
+                    <div class="meta">
+                        <div><strong>Mesa/Cliente:</strong> ${cliente}</div>
+                        <div><strong>Atendido por:</strong> ${mesero}</div>
+                        <div><strong>Fecha:</strong> ${fechaHora}</div>
+                    </div>
+
+                    <div class="items">
+                        <div style="font-size:12px; border-bottom:1px solid #000; padding-bottom:2px; margin-bottom:4px;"><strong>CANT. DESCRIPCIÓN</strong></div>
+                        ${itemsHtml}
+                    </div>
+
+                    <div class="footer">
+                        *** FIN DE COMANDA ***
+                    </div>
+
+                    <script>
+                        window.onload = function() {
+                            window.focus();
+                            window.print();
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `;
+
+            doc.open();
+            doc.write(ticketContent);
+            doc.close();
         }
 
         function renderCaja() {
@@ -608,10 +692,23 @@
                             <ul class="text-sm space-y-1 bg-slate-900 p-2 rounded">
                                 ${items.map(i => `<li>• ${i.nombre}</li>`).join("")}
                             </ul>
-                            <button onclick="markKitchenReady(${p.id})" class="w-full bg-orange-500 hover:bg-orange-600 font-bold py-2 rounded text-sm">✔ MARCAR LISTO</button>
+                            <div class="flex gap-2">
+                                <button onclick="reimprimirTicketCocina(${p.id})" class="w-1/3 bg-slate-700 hover:bg-slate-600 font-bold py-2 rounded text-xs text-white">🖨 Ticket</button>
+                                <button onclick="markKitchenReady(${p.id})" class="w-2/3 bg-orange-500 hover:bg-orange-600 font-bold py-2 rounded text-sm">✔ LISTO</button>
+                            </div>
                         </div>
                     `;
                 }).join("");
+            };
+        }
+
+        function reimprimirTicketCocina(orderId) {
+            const tx = db.transaction("pedidos", "readonly");
+            tx.objectStore("pedidos").get(orderId).onsuccess = (e) => {
+                const p = e.target.result;
+                if(p) {
+                    imprimirTicketCocina(p.id, p.cliente, JSON.parse(p.items), p.mesero, p.fecha_hora);
+                }
             };
         }
 
@@ -724,7 +821,6 @@
             };
         }
 
-        // --- FUNCIONES DE EXPORTACIÓN E IMPORTACIÓN DE INVENTARIO ---
         function exportarInventarioJSON() {
             const tx = db.transaction(["productos", "categorias", "salsas"], "readonly");
             const backupData = {};
@@ -765,12 +861,10 @@
 
                     const tx = db.transaction(["productos", "categorias", "salsas"], "readwrite");
                     
-                    // Limpiar datos actuales
                     tx.objectStore("categorias").clear();
                     tx.objectStore("salsas").clear();
                     tx.objectStore("productos").clear();
 
-                    // Insertar nuevos datos
                     data.categorias.forEach(c => tx.objectStore("categorias").add({ nombre: c.nombre }));
                     if (data.salsas) data.salsas.forEach(s => tx.objectStore("salsas").add({ nombre: s.nombre }));
                     data.productos.forEach(p => tx.objectStore("productos").add({
@@ -801,7 +895,6 @@
             renderProductsTable();
         }
 
-        // --- GESTIÓN DE PRODUCTOS ---
         function renderProductsTable() {
             const table = document.getElementById("productsTableBody");
             const catSelect = document.getElementById("newProdCategory");
@@ -880,7 +973,6 @@
             tx.oncomplete = () => renderProductsTable();
         }
 
-        // --- GESTIÓN DE USUARIOS ---
         function renderUsersTable() {
             const table = document.getElementById("usersTableBody");
             const tx = db.transaction("usuarios", "readonly");
@@ -924,7 +1016,6 @@
             tx.oncomplete = () => renderUsersTable();
         }
 
-        // --- GESTIÓN DE CATEGORÍAS ---
         function renderCategoriesList() {
             const list = document.getElementById("catList");
             const tx = db.transaction("categorias", "readonly");
@@ -961,7 +1052,6 @@
             };
         }
 
-        // --- GESTIÓN DE SALSAS ---
         function renderSaucesList() {
             const list = document.getElementById("sauceList");
             const tx = db.transaction("salsas", "readonly");
