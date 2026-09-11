@@ -66,16 +66,13 @@
                         <h3 class="font-bold text-lg mb-2">Orden del Cliente</h3>
                         <input type="text" id="orderClient" placeholder="Cliente / Mesa" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm mb-2">
                         
-                        <!-- DATOS OPCIONALES DE FACTURA -->
-                        <div class="bg-slate-900 p-3 rounded-lg mb-2 space-y-2">
-                            <span class="text-xs font-bold text-emerald-400 block">📄 Datos de Facturación (Opcional)</span>
-                            <div class="grid grid-cols-2 gap-2">
-                                <input type="text" id="factRuc" placeholder="RUC / Cédula" class="bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white">
-                                <input type="text" id="factRazon" placeholder="Razón Social / Nombre" class="bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white">
-                            </div>
-                            <div class="grid grid-cols-2 gap-2">
-                                <input type="text" id="factPhone" placeholder="Teléfono" class="bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white">
-                                <input type="email" id="factEmail" placeholder="Correo Electrónico" class="bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white">
+                        <!-- BOTÓN DESPLEGABLE DE FACTURA -->
+                        <div class="mb-2">
+                            <button onclick="openFacturaModal()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs p-2 rounded-lg flex items-center justify-center gap-2">
+                                📄 Agregar Datos para Factura
+                            </button>
+                            <div id="facturaBadge" class="hidden text-xs text-emerald-400 font-semibold mt-1 bg-slate-900 p-1.5 rounded text-center">
+                                ✅ Datos cargados
                             </div>
                         </div>
 
@@ -156,6 +153,7 @@
                                     <th class="p-2">Usuario</th>
                                     <th class="p-2">Cliente / Razón Social</th>
                                     <th class="p-2">RUC / Cédula</th>
+                                    <th class="p-2">Dirección</th>
                                     <th class="p-2">Teléfono</th>
                                     <th class="p-2">Correo</th>
                                     <th class="p-2 w-1/4">Detalle</th>
@@ -284,6 +282,39 @@
         </main>
     </div>
 
+    <!-- MODAL FACTURACIÓN -->
+    <div id="facturaModal" class="fixed inset-0 bg-black/70 flex items-center justify-center p-4 hidden">
+        <div class="card p-6 w-full max-w-md space-y-4">
+            <h3 class="font-bold text-lg text-sky-400">📄 Datos de Facturación</h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-400 block mb-1">RUC / Cédula:</label>
+                    <input type="text" id="modalFactRuc" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-white">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 block mb-1">Razón Social / Nombre Completo:</label>
+                    <input type="text" id="modalFactRazon" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-white">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 block mb-1">Dirección:</label>
+                    <input type="text" id="modalFactDir" placeholder="Ej: Av. Principal y Calle 2" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-white">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 block mb-1">Teléfono:</label>
+                    <input type="text" id="modalFactPhone" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-white">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 block mb-1">Correo Electrónico:</label>
+                    <input type="email" id="modalFactEmail" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-white">
+                </div>
+            </div>
+            <div class="flex gap-2 justify-end pt-2">
+                <button onclick="closeFacturaModal()" class="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded text-sm font-bold">Cancelar</button>
+                <button onclick="saveFacturaData()" class="btn-primary px-4 py-2 rounded text-sm">Guardar Datos</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL SALSA -->
     <div id="sauceModal" class="fixed inset-0 bg-black/70 flex items-center justify-center p-4 hidden">
         <div class="card p-6 w-full max-w-md space-y-4">
@@ -352,6 +383,7 @@
         let currentUser = null;
         let cart = [];
         let currentModalItem = null;
+        let tempFacturaData = null;
 
         function handleLogin(e) {
             e.preventDefault();
@@ -379,6 +411,7 @@
         function logout() {
             currentUser = null;
             cart = [];
+            tempFacturaData = null;
             document.getElementById("appScreen").classList.add("hidden");
             document.getElementById("userInfo").classList.add("hidden");
             document.getElementById("loginScreen").classList.remove("hidden");
@@ -430,6 +463,38 @@
             if (viewId === "Cocina") renderCocina();
             if (viewId === "Reportes") renderReports();
             if (viewId === "Admin") renderAdminConfig();
+        }
+
+        // --- MANEJO DEL MODAL DE FACTURA ---
+        function openFacturaModal() {
+            document.getElementById("facturaModal").classList.remove("hidden");
+        }
+
+        function closeFacturaModal() {
+            document.getElementById("facturaModal").classList.add("hidden");
+        }
+
+        function saveFacturaData() {
+            const ruc = document.getElementById("modalFactRuc").value.trim();
+            const razon = document.getElementById("modalFactRazon").value.trim();
+            const dir = document.getElementById("modalFactDir").value.trim();
+            const phone = document.getElementById("modalFactPhone").value.trim();
+            const email = document.getElementById("modalFactEmail").value.trim();
+
+            if (!ruc || !razon) {
+                return alert("Para facturación se requiere al menos RUC/Cédula y Razón Social.");
+            }
+
+            tempFacturaData = {
+                ruc: ruc,
+                razon: razon,
+                dir: dir || "N/A",
+                phone: phone || "N/A",
+                email: email || "N/A"
+            };
+
+            document.getElementById("facturaBadge").classList.remove("hidden");
+            closeFacturaModal();
         }
 
         function renderCatalog() {
@@ -528,20 +593,16 @@
             if (!client) return alert("Ingresa el nombre del cliente o mesa.");
             if (cart.length === 0) return alert("El carrito está vacío.");
 
-            const ruc = document.getElementById("factRuc").value.trim();
-            const razon = document.getElementById("factRazon").value.trim();
-            const phone = document.getElementById("factPhone").value.trim();
-            const email = document.getElementById("factEmail").value.trim();
-
             const total = cart.reduce((acc, i) => acc + i.precio, 0);
             const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
             const orderData = {
                 cliente: client,
-                fact_ruc: ruc || "Consumidor Final",
-                fact_razon: razon || client,
-                fact_phone: phone || "N/A",
-                fact_email: email || "N/A",
+                fact_ruc: tempFacturaData ? tempFacturaData.ruc : "Consumidor Final",
+                fact_razon: tempFacturaData ? tempFacturaData.razon : client,
+                fact_dir: tempFacturaData ? tempFacturaData.dir : "N/A",
+                fact_phone: tempFacturaData ? tempFacturaData.phone : "N/A",
+                fact_email: tempFacturaData ? tempFacturaData.email : "N/A",
                 items: JSON.stringify(cart),
                 total: total,
                 estado: "pendiente",
@@ -558,11 +619,14 @@
                 imprimirTicketCocina(insertedId, client, cart, currentUser.nombre, now);
 
                 cart = [];
+                tempFacturaData = null;
                 document.getElementById("orderClient").value = "";
-                document.getElementById("factRuc").value = "";
-                document.getElementById("factRazon").value = "";
-                document.getElementById("factPhone").value = "";
-                document.getElementById("factEmail").value = "";
+                document.getElementById("modalFactRuc").value = "";
+                document.getElementById("modalFactRazon").value = "";
+                document.getElementById("modalFactDir").value = "";
+                document.getElementById("modalFactPhone").value = "";
+                document.getElementById("modalFactEmail").value = "";
+                document.getElementById("facturaBadge").classList.add("hidden");
                 renderCart();
             };
         }
@@ -672,6 +736,7 @@
                         <div class="text-xs text-slate-400 bg-slate-900 p-2 rounded space-y-0.5">
                             <div>Razón Social: <span class="text-white font-medium">${p.fact_razon || p.cliente}</span></div>
                             <div>RUC/CI: <span class="text-white font-medium">${p.fact_ruc || 'N/A'}</span></div>
+                            <div>Dirección: <span class="text-white font-medium">${p.fact_dir || 'N/A'}</span></div>
                             <div>Telf: <span class="text-white font-medium">${p.fact_phone || 'N/A'}</span></div>
                             <div>Email: <span class="text-white font-medium">${p.fact_email || 'N/A'}</span></div>
                         </div>
@@ -771,6 +836,7 @@
                             <td class="p-2">${p.mesero}</td>
                             <td class="p-2">${p.fact_razon || p.cliente}</td>
                             <td class="p-2">${p.fact_ruc || 'N/A'}</td>
+                            <td class="p-2">${p.fact_dir || 'N/A'}</td>
                             <td class="p-2">${p.fact_phone || 'N/A'}</td>
                             <td class="p-2">${p.fact_email || 'N/A'}</td>
                             <td class="p-2 text-xs">${items}</td>
@@ -796,12 +862,14 @@
                 let orders = e.target.result;
                 if(dateVal) orders = orders.filter(p => p.fecha_hora.startsWith(dateVal));
 
-                const cobrados = orders.filter(p => p.estado === "cobrado");
-                if (cobrados.length === 0) return alert("No existen ventas cobradas para generar el reporte.");
+                // FILTRAR SOLO VENTAS COBRADAS QUE CONTENGAN DATOS EXPLICITOS DE FACTURACIÓN
+                const conFactura = orders.filter(p => p.estado === "cobrado" && p.fact_ruc && p.fact_ruc !== "Consumidor Final");
+
+                if (conFactura.length === 0) return alert("No existen ventas registradas con datos de facturación para el reporte contable.");
 
                 doc.setFontSize(18);
                 doc.setTextColor(16, 185, 129);
-                doc.text("⚡ FastFood POS Pro - Reporte Contable de Ventas", 14, 15);
+                doc.text("⚡ FastFood POS Pro - Reporte de Facturación (Contabilidad)", 14, 15);
 
                 doc.setFontSize(10);
                 doc.setTextColor(100);
@@ -809,19 +877,19 @@
                 doc.text(`${fechaTexto} | Generado el: ${new Date().toLocaleString()}`, 14, 22);
 
                 let totalVentas = 0;
-                const rows = cobrados.map(p => {
+                const rows = conFactura.map(p => {
                     totalVentas += p.total;
                     const itemsText = JSON.parse(p.items).map(i => i.nombre).join(", ");
                     return [
-                        `#${p.id}`, p.fecha_hora, p.fact_razon || p.cliente,
-                        p.fact_ruc || 'Consumidor Final', p.fact_phone || 'N/A',
+                        `#${p.id}`, p.fecha_hora, p.fact_razon,
+                        p.fact_ruc, p.fact_dir || 'N/A', p.fact_phone || 'N/A',
                         p.fact_email || 'N/A', itemsText, p.metodo_pago, `$${p.total.toFixed(2)}`
                     ];
                 });
 
                 doc.autoTable({
                     startY: 28,
-                    head: [['ID', 'Fecha/Hora', 'Cliente / Razón Social', 'RUC / Cédula', 'Teléfono', 'Correo', 'Detalle Pedido', 'Forma Pago', 'Total']],
+                    head: [['ID', 'Fecha/Hora', 'Razón Social', 'RUC / Cédula', 'Dirección', 'Teléfono', 'Correo', 'Detalle Pedido', 'Forma Pago', 'Total']],
                     body: rows,
                     styles: { fontSize: 8, cellPadding: 2 },
                     headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255] },
@@ -831,10 +899,10 @@
                 const finalY = doc.lastAutoTable.finalY + 10;
                 doc.setFontSize(12);
                 doc.setTextColor(0);
-                doc.text(`Total Registros: ${cobrados.length}`, 14, finalY);
-                doc.text(`Monto Total Cobrado: $${totalVentas.toFixed(2)}`, 14, finalY + 6);
+                doc.text(`Total Facturas Registradas: ${conFactura.length}`, 14, finalY);
+                doc.text(`Monto Total Facturado: $${totalVentas.toFixed(2)}`, 14, finalY + 6);
 
-                doc.save(`Reporte_Contadora_${dateVal || 'General'}.pdf`);
+                doc.save(`Reporte_Facturacion_Contadora_${dateVal || 'General'}.pdf`);
             };
         }
 
@@ -885,14 +953,12 @@
 
                     const tx = db.transaction(["usuarios", "categorias", "salsas", "productos", "pedidos"], "readwrite");
                     
-                    // Limpiar todas las tablas
                     tx.objectStore("usuarios").clear();
                     tx.objectStore("categorias").clear();
                     tx.objectStore("salsas").clear();
                     tx.objectStore("productos").clear();
                     tx.objectStore("pedidos").clear();
 
-                    // Cargar datos
                     if (data.usuarios) data.usuarios.forEach(u => tx.objectStore("usuarios").add(u));
                     if (data.categorias) data.categorias.forEach(c => tx.objectStore("categorias").add(c));
                     if (data.salsas) data.salsas.forEach(s => tx.objectStore("salsas").add(s));
