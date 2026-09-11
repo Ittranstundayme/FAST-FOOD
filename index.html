@@ -13,20 +13,25 @@
         .card { background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; }
         .btn-primary { background-color: #10b981; color: white; font-weight: bold; }
         .btn-primary:hover { background-color: #059669; }
-        /* Scrollbars finas táctiles */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        /* Botones aptos para toque táctil */
         button, input, select { min-height: 42px; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
 
-    <!-- HEADER -->
-    <header class="bg-slate-800 border-b border-slate-700 px-4 py-3 flex justify-between items-center shrink-0">
-        <h1 class="text-lg md:text-xl font-bold text-emerald-400 flex items-center gap-1">⚡ FastFood POS</h1>
+    <!-- HEADER CON MENÚ HAMBURGUESA PARA MÓVILES -->
+    <header class="bg-slate-800 border-b border-slate-700 px-4 py-3 flex justify-between items-center shrink-0 z-40 relative">
+        <div class="flex items-center gap-3">
+            <!-- BOTÓN MENÚ MÓVIL (HAMBURGUESA) -->
+            <button id="btnMobileMenu" onclick="toggleMobileMenu()" class="md:hidden bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded-lg text-lg min-h-0 hidden">
+                ☰
+            </button>
+            <h1 class="text-base md:text-xl font-bold text-emerald-400 flex items-center gap-1">⚡ FastFood POS</h1>
+        </div>
+        
         <div id="userInfo" class="flex items-center gap-2 md:gap-4 hidden">
-            <span id="userBadge" class="text-xs md:text-sm font-semibold bg-slate-700 px-2.5 py-1 rounded-full truncate max-w-[150px] md:max-w-none"></span>
+            <span id="userBadge" class="text-xs md:text-sm font-semibold bg-slate-700 px-2.5 py-1 rounded-full truncate max-w-[130px] md:max-w-none"></span>
             <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg font-bold min-h-0">Salir</button>
         </div>
     </header>
@@ -52,30 +57,30 @@
     </div>
 
     <!-- MAIN APP SCREEN -->
-    <div id="appScreen" class="flex-1 flex flex-col md:flex-row overflow-hidden hidden">
+    <div id="appScreen" class="flex-1 flex flex-col md:flex-row overflow-hidden hidden relative">
         
-        <!-- SIDEBAR / MENÚ TÁCTIL (Horizontal en celular, Vertical en PC) -->
-        <nav id="sidebar" class="w-full md:w-64 bg-slate-800 p-2 md:p-4 border-b md:border-b-0 md:border-r border-slate-700 flex md:flex-col gap-2 overflow-x-auto shrink-0 scrollbar-none">
+        <!-- SIDEBAR / MENÚ NAVEGACIÓN -->
+        <nav id="sidebar" class="w-full md:w-64 bg-slate-800 p-2 md:p-4 border-b md:border-b-0 md:border-r border-slate-700 flex md:flex-col gap-2 overflow-x-auto shrink-0 z-30">
         </nav>
 
         <!-- MAIN CONTENT AREA -->
         <main class="flex-1 p-3 md:p-6 overflow-y-auto">
 
             <!-- VISTA: TOMAR PEDIDO -->
-            <section id="viewPedido" class="hidden h-full flex flex-col">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 flex-1 min-h-0">
+            <section id="viewPedido" class="hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
                     
                     <!-- CATÁLOGO -->
-                    <div class="lg:col-span-2 flex flex-col space-y-3 min-h-0">
-                        <div class="flex items-center gap-3 bg-slate-800 p-3 rounded-xl shrink-0">
+                    <div class="lg:col-span-2 space-y-3">
+                        <div class="flex items-center gap-3 bg-slate-800 p-3 rounded-xl">
                             <label class="font-bold text-xs md:text-sm shrink-0">📁 Sección:</label>
                             <select id="filterCategory" onchange="renderCatalog()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-xs md:text-sm"></select>
                         </div>
-                        <div id="catalogGrid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 md:gap-4 overflow-y-auto p-1"></div>
+                        <div id="catalogGrid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 md:gap-4 p-1"></div>
                     </div>
 
                     <!-- CARRITO & COMPROBANTE -->
-                    <div class="card p-3 md:p-4 flex flex-col h-auto lg:h-full max-h-[500px] lg:max-h-none shrink-0">
+                    <div class="card p-3 md:p-4 flex flex-col">
                         <h3 class="font-bold text-base md:text-lg mb-2 flex justify-between items-center">
                             <span>Orden del Cliente</span>
                             <span id="mobileCartCount" class="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full lg:hidden">0 items</span>
@@ -93,19 +98,19 @@
                         </div>
 
                         <!-- ITEM ESPECIAL LIBRE -->
-                        <div class="bg-slate-900 p-2 rounded-lg mb-2 shrink-0">
+                        <div class="bg-slate-900 p-2 rounded-lg mb-2">
                             <span class="text-xs font-bold text-purple-400 block mb-1">✨ Pedido Especial Libre</span>
                             <div class="flex gap-1.5 mb-1">
                                 <input type="text" id="customItemDesc" placeholder="Descripción" class="w-2/3 bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white">
-                                <input type="number" id="customItemPrice" placeholder="Price $" class="w-1/3 bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white">
+                                <input type="number" id="customItemPrice" placeholder="Precio $" class="w-1/3 bg-slate-800 border border-slate-700 rounded p-1.5 text-xs text-white">
                             </div>
                             <button onclick="addCustomItem()" class="w-full bg-purple-600 hover:bg-purple-700 text-xs font-bold p-1 rounded min-h-0">Agregar</button>
                         </div>
 
                         <!-- ITEMS EN CARRITO -->
-                        <div id="cartItems" class="flex-1 overflow-y-auto space-y-1.5 mb-2 pr-1 min-h-[100px]"></div>
+                        <div id="cartItems" class="flex-1 overflow-y-auto space-y-1.5 mb-2 pr-1 min-h-[120px] max-h-[250px]"></div>
 
-                        <div class="border-t border-slate-700 pt-2 mt-auto shrink-0">
+                        <div class="border-t border-slate-700 pt-2 mt-auto">
                             <div class="flex justify-between items-center text-base md:text-lg font-bold text-emerald-400 mb-2">
                                 <span>TOTAL:</span>
                                 <span id="cartTotal">$0.00</span>
@@ -430,10 +435,17 @@
             document.getElementById("appScreen").classList.add("hidden");
             document.getElementById("userInfo").classList.add("hidden");
             document.getElementById("loginScreen").classList.remove("hidden");
+            document.getElementById("btnMobileMenu").classList.add("hidden");
+        }
+
+        function toggleMobileMenu() {
+            const nav = document.getElementById("sidebar");
+            nav.classList.toggle("hidden");
         }
 
         function setupNavigation() {
             const nav = document.getElementById("sidebar");
+            const btnMenu = document.getElementById("btnMobileMenu");
             nav.innerHTML = "";
 
             const views = {
@@ -457,11 +469,22 @@
             };
 
             const allowed = views[currentUser.rol] || views["mesero"];
+            
+            // Mostrar botón hamburguesa si hay múltiples opciones
+            if (allowed.length > 1) {
+                btnMenu.classList.remove("hidden");
+            } else {
+                btnMenu.classList.add("hidden");
+            }
+
             allowed.forEach((v, index) => {
                 const btn = document.createElement("button");
-                btn.className = "whitespace-nowrap px-3 py-2 md:p-3 rounded-lg font-bold bg-slate-700 hover:bg-slate-600 transition text-xs md:text-sm shrink-0 min-h-0";
+                btn.className = "w-full text-left p-3 rounded-lg font-bold bg-slate-700 hover:bg-slate-600 transition text-xs md:text-sm shrink-0 min-h-0 mb-1";
                 btn.innerText = v.name;
-                btn.onclick = () => switchView(v.id);
+                btn.onclick = () => {
+                    switchView(v.id);
+                    if (window.innerWidth < 768) nav.classList.add("hidden");
+                };
                 nav.appendChild(btn);
                 if (index === 0) switchView(v.id);
             });
