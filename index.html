@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>⚡ FastFood POS Pro Web</title>
+    <title>⚡ New Haven POS Pro Web</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Librerías jsPDF y AutoTable -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -18,16 +18,20 @@
         button, input, select { min-height: 42px; }
     </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden">
+<body class="h-screen flex flex-col overflow-hidden relative">
+
+    <!-- MARCA DE AGUA (WATERMARK) EN LA ESQUINA INFERIOR DERECHA -->
+    <div class="fixed bottom-2 right-3 pointer-events-none z-50 text-[10px] md:text-xs font-semibold text-slate-500/60 tracking-wider uppercase select-none">
+        Developed by JM
+    </div>
 
     <!-- HEADER CON MENÚ HAMBURGUESA PARA MÓVILES -->
     <header class="bg-slate-800 border-b border-slate-700 px-4 py-3 flex justify-between items-center shrink-0 z-40 relative">
         <div class="flex items-center gap-3">
-            <!-- BOTÓN MENÚ MÓVIL (HAMBURGUESA) -->
             <button id="btnMobileMenu" onclick="toggleMobileMenu()" class="md:hidden bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded-lg text-lg min-h-0 hidden">
                 ☰
             </button>
-            <h1 class="text-base md:text-xl font-bold text-emerald-400 flex items-center gap-1">⚡ FastFood POS</h1>
+            <h1 class="text-base md:text-xl font-bold text-emerald-400 flex items-center gap-1">⚡ New Haven POS</h1>
         </div>
         
         <div id="userInfo" class="flex items-center gap-2 md:gap-4 hidden">
@@ -39,7 +43,7 @@
     <!-- LOGIN SCREEN -->
     <div id="loginScreen" class="flex-1 flex items-center justify-center p-4 overflow-y-auto">
         <div class="card p-6 md:p-8 w-full max-w-md shadow-xl text-center">
-            <h2 class="text-2xl font-bold text-emerald-400 mb-1">⚡ FastFood POS</h2>
+            <h2 class="text-2xl font-bold text-emerald-400 mb-1">⚡ New Haven POS</h2>
             <p class="text-slate-400 text-sm mb-6">Inicio de Sesión Centralizado</p>
             <form onsubmit="handleLogin(event)" class="space-y-4 text-left">
                 <div>
@@ -354,9 +358,6 @@
         </div>
     </div>
 
-    <!-- IFRAME OCULTO PARA IMPRESIÓN DE TICKETS -->
-    <iframe id="printFrame" style="display:none;"></iframe>
-
     <script>
         let db;
         const request = indexedDB.open("FastFoodPOS", 6);
@@ -470,7 +471,6 @@
 
             const allowed = views[currentUser.rol] || views["mesero"];
             
-            // Mostrar botón hamburguesa si hay múltiples opciones
             if (allowed.length > 1) {
                 btnMenu.classList.remove("hidden");
             } else {
@@ -675,25 +675,31 @@
             };
         }
 
+        // --- IMPRESIÓN CON ENCABEZADO "NEW HAVEN PEDIDO" ---
         function imprimirTicketCocina(orderId, cliente, items, mesero, fechaHora, esReimpresion = false) {
-            const iframe = document.getElementById('printFrame');
-            const doc = iframe.contentWindow.document;
-
             const itemsHtml = items.map(item => `
-                <div class="item">
-                    <span class="qty">1x</span>
-                    <span class="name">${item.nombre}</span>
+                <div style="font-size: 15px; font-weight: bold; margin: 6px 0; display: flex;">
+                    <span style="width: 30px;">1x</span>
+                    <span style="flex: 1; word-break: break-word;">${item.nombre}</span>
                 </div>
             `).join("");
 
-            const ticketContent = `
+            const ticketHTML = `
                 <!DOCTYPE html>
                 <html>
                 <head>
                     <meta charset="UTF-8">
+                    <title>Ticket #${orderId}</title>
                     <style>
                         @page { size: 80mm auto; margin: 0mm; }
-                        body { font-family: 'Courier New', Courier, monospace; width: 72mm; margin: 0 auto; padding: 5mm 0; color: #000; background: #fff; }
+                        body { 
+                            font-family: 'Courier New', Courier, monospace; 
+                            width: 72mm; 
+                            margin: 0 auto; 
+                            padding: 5mm 0;
+                            color: #000;
+                            background: #fff;
+                        }
                         .text-center { text-align: center; }
                         .header { border-bottom: 2px dashed #000; padding-bottom: 5px; margin-bottom: 8px; }
                         .title { font-size: 18px; font-weight: bold; margin: 0; }
@@ -701,15 +707,12 @@
                         .reimpresion { font-size: 13px; font-weight: bold; background: #000; color: #fff; padding: 2px 4px; margin-top: 4px; display: inline-block; }
                         .meta { font-size: 12px; margin-bottom: 6px; }
                         .items { border-bottom: 2px dashed #000; padding-bottom: 8px; margin-bottom: 8px; }
-                        .item { font-size: 15px; font-weight: bold; margin: 6px 0; display: flex; }
-                        .qty { width: 30px; }
-                        .name { flex: 1; word-break: break-word; }
                         .footer { font-size: 11px; text-align: center; margin-top: 10px; }
                     </style>
                 </head>
                 <body>
                     <div class="header text-center">
-                        <div class="title">🔥 COMANDA COCINA 🔥</div>
+                        <div class="title">🔥 NEW HAVEN PEDIDO 🔥</div>
                         <div class="subtitle">ORDEN #${orderId}</div>
                         ${esReimpresion ? '<div class="reimpresion">** REIMPRESIÓN **</div>' : ''}
                     </div>
@@ -722,15 +725,26 @@
                         <div style="font-size:12px; border-bottom:1px solid #000; padding-bottom:2px; margin-bottom:4px;"><strong>CANT. DESCRIPCIÓN</strong></div>
                         ${itemsHtml}
                     </div>
-                    <div class="footer">*** FIN DE COMANDA ***</div>
-                    <script>window.onload = function() { window.focus(); window.print(); };<\/script>
+                    <div class="footer">*** FIN DE PEDIDO ***</div>
+                    <script>
+                        window.onload = function() {
+                            window.focus();
+                            window.print();
+                            setTimeout(function(){ window.close(); }, 500);
+                        };
+                    <\/script>
                 </body>
                 </html>
             `;
 
-            doc.open();
-            doc.write(ticketContent);
-            doc.close();
+            const printWin = window.open('', '_blank', 'width=400,height=600');
+            if (printWin) {
+                printWin.document.open();
+                printWin.document.write(ticketHTML);
+                printWin.document.close();
+            } else {
+                alert("Por favor permite las ventanas emergentes para imprimir tickets en el navegador.");
+            }
         }
 
         function renderCaja() {
@@ -877,7 +891,7 @@
 
                 doc.setFontSize(18);
                 doc.setTextColor(16, 185, 129);
-                doc.text("⚡ FastFood POS Pro - Reporte de Facturación (Contabilidad)", 14, 15);
+                doc.text("⚡ New Haven POS Pro - Reporte de Facturación (Contabilidad)", 14, 15);
 
                 doc.setFontSize(10);
                 doc.setTextColor(100);
