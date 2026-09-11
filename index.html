@@ -171,25 +171,30 @@
                 </div>
             </section>
 
-            <!-- VISTA: ADMIN CONFIGURACIÓN -->
-            <section id="viewAdmin" class="hidden space-y-6">
-                <h2 class="text-2xl font-bold text-purple-400">⚙️ Configuración del Sistema</h2>
-
-                <!-- SECCIÓN DE RESPALDOS -->
-                <div class="card p-6 border-l-4 border-sky-500 space-y-3">
-                    <h3 class="font-bold text-lg text-sky-400">💾 Respaldos de Inventario y Secciones</h3>
-                    <p class="text-xs text-slate-400">Exporta o importa el catálogo de productos, fotos y secciones para crear copias de seguridad o transferirlos a otro equipo.</p>
+            <!-- VISTA: RESPALDOS DE SISTEMA -->
+            <section id="viewRespaldos" class="hidden space-y-6">
+                <h2 class="text-2xl font-bold text-sky-400">💾 Respaldos del Sistema</h2>
+                <div class="card p-6 border-l-4 border-sky-500 space-y-4">
+                    <h3 class="font-bold text-lg text-sky-400">Copia de Seguridad Completa</h3>
+                    <p class="text-sm text-slate-300">
+                        Exporta e importa absolutamente **TODOS** los datos del sistema: empleados, catálogo de productos, categorías, salsas/términos e historial de pedidos de todas las fechas.
+                    </p>
                     <div class="flex flex-wrap gap-4 items-center pt-2">
-                        <button onclick="exportarInventarioJSON()" class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg font-bold text-sm">
-                            📤 Exportar Inventario (Backup JSON)
+                        <button onclick="exportarSistemaCompletoJSON()" class="bg-sky-600 hover:bg-sky-700 text-white px-5 py-3 rounded-lg font-bold text-sm shadow-lg flex items-center gap-2">
+                            📤 Exportar Respaldo Total (Backup JSON)
                         </button>
-                        <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg p-2">
-                            <label class="text-xs font-bold text-slate-300">📥 Importar Respaldo:</label>
-                            <input type="file" id="importFile" accept=".json" class="text-xs text-slate-300">
-                            <button onclick="importarInventarioJSON()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded font-bold text-xs">Cargar</button>
+                        <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg p-2.5">
+                            <label class="text-xs font-bold text-slate-300">📥 Importar Respaldo Total:</label>
+                            <input type="file" id="importFileFull" accept=".json" class="text-xs text-slate-300">
+                            <button onclick="importarSistemaCompletoJSON()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded font-bold text-xs">Cargar Datos</button>
                         </div>
                     </div>
                 </div>
+            </section>
+
+            <!-- VISTA: ADMIN CONFIGURACIÓN -->
+            <section id="viewAdmin" class="hidden space-y-6">
+                <h2 class="text-2xl font-bold text-purple-400">⚙️ Configuración del Sistema</h2>
 
                 <!-- GESTIÓN DE PRODUCTOS POR SECCIÓN CON IMAGEN -->
                 <div class="card p-6 space-y-4 border-l-4 border-emerald-500">
@@ -398,6 +403,7 @@
                     { id: "Caja", name: "💰 Caja y Cobros" },
                     { id: "Cocina", name: "🔥 Cocina" },
                     { id: "Reportes", name: "📊 Reportes & Facturas" },
+                    { id: "Respaldos", name: "💾 Respaldos" },
                     { id: "Admin", name: "⚙️ Configuración" }
                 ]
             };
@@ -414,7 +420,7 @@
         }
 
         function switchView(viewId) {
-            ["Pedido", "Caja", "Cocina", "Reportes", "Admin"].forEach(v => {
+            ["Pedido", "Caja", "Cocina", "Reportes", "Respaldos", "Admin"].forEach(v => {
                 document.getElementById(`view${v}`).classList.add("hidden");
             });
             document.getElementById(`view${viewId}`).classList.remove("hidden");
@@ -832,31 +838,38 @@
             };
         }
 
-        function exportarInventarioJSON() {
-            const tx = db.transaction(["productos", "categorias", "salsas"], "readonly");
+        // --- FUNCIONES DE EXPORTACIÓN E IMPORTACIÓN TOTAL DEL SISTEMA ---
+        function exportarSistemaCompletoJSON() {
+            const tx = db.transaction(["usuarios", "categorias", "salsas", "productos", "pedidos"], "readonly");
             const backupData = {};
 
-            tx.objectStore("categorias").getAll().onsuccess = (e1) => {
-                backupData.categorias = e1.target.result;
-                tx.objectStore("salsas").getAll().onsuccess = (e2) => {
-                    backupData.salsas = e2.target.result;
-                    tx.objectStore("productos").getAll().onsuccess = (e3) => {
-                        backupData.productos = e3.target.result;
+            tx.objectStore("usuarios").getAll().onsuccess = (e1) => {
+                backupData.usuarios = e1.target.result;
+                tx.objectStore("categorias").getAll().onsuccess = (e2) => {
+                    backupData.categorias = e2.target.result;
+                    tx.objectStore("salsas").getAll().onsuccess = (e3) => {
+                        backupData.salsas = e3.target.result;
+                        tx.objectStore("productos").getAll().onsuccess = (e4) => {
+                            backupData.productos = e4.target.result;
+                            tx.objectStore("pedidos").getAll().onsuccess = (e5) => {
+                                backupData.pedidos = e5.target.result;
 
-                        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
-                        const downloadAnchor = document.createElement('a');
-                        downloadAnchor.setAttribute("href", dataStr);
-                        downloadAnchor.setAttribute("download", `Respaldo_Inventario_POS_${new Date().toISOString().slice(0,10)}.json`);
-                        document.body.appendChild(downloadAnchor);
-                        downloadAnchor.click();
-                        downloadAnchor.remove();
+                                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+                                const downloadAnchor = document.createElement('a');
+                                downloadAnchor.setAttribute("href", dataStr);
+                                downloadAnchor.setAttribute("download", `Respaldo_TOTAL_POS_${new Date().toISOString().slice(0,10)}.json`);
+                                document.body.appendChild(downloadAnchor);
+                                downloadAnchor.click();
+                                downloadAnchor.remove();
+                            };
+                        };
                     };
                 };
             };
         }
 
-        function importarInventarioJSON() {
-            const fileInput = document.getElementById("importFile");
+        function importarSistemaCompletoJSON() {
+            const fileInput = document.getElementById("importFileFull");
             const file = fileInput.files[0];
             if (!file) return alert("Por favor, selecciona un archivo .json de respaldo.");
 
@@ -864,36 +877,36 @@
             reader.onload = (e) => {
                 try {
                     const data = JSON.parse(e.target.result);
-                    if (!data.productos || !data.categorias) {
-                        return alert("El archivo no tiene la estructura correcta de inventario.");
+                    if (!data.productos || !data.categorias || !data.usuarios) {
+                        return alert("El archivo no contiene un respaldo válido del sistema.");
                     }
 
-                    if (!confirm("Esta acción reemplazará las categorías, salsas y productos actuales. ¿Deseas continuar?")) return;
+                    if (!confirm("⚠️ ATENCIÓN: Esta acción sobrescribirá TODOS los usuarios, productos, categorías e historial de pedidos existentes. ¿Deseas continuar?")) return;
 
-                    const tx = db.transaction(["productos", "categorias", "salsas"], "readwrite");
+                    const tx = db.transaction(["usuarios", "categorias", "salsas", "productos", "pedidos"], "readwrite");
                     
+                    // Limpiar todas las tablas
+                    tx.objectStore("usuarios").clear();
                     tx.objectStore("categorias").clear();
                     tx.objectStore("salsas").clear();
                     tx.objectStore("productos").clear();
+                    tx.objectStore("pedidos").clear();
 
-                    data.categorias.forEach(c => tx.objectStore("categorias").add({ nombre: c.nombre }));
-                    if (data.salsas) data.salsas.forEach(s => tx.objectStore("salsas").add({ nombre: s.nombre }));
-                    data.productos.forEach(p => tx.objectStore("productos").add({
-                        nombre: p.nombre,
-                        precio: p.precio,
-                        categoria: p.categoria,
-                        requiere_salsa: p.requiere_salsa,
-                        imagen: p.imagen || ""
-                    }));
+                    // Cargar datos
+                    if (data.usuarios) data.usuarios.forEach(u => tx.objectStore("usuarios").add(u));
+                    if (data.categorias) data.categorias.forEach(c => tx.objectStore("categorias").add(c));
+                    if (data.salsas) data.salsas.forEach(s => tx.objectStore("salsas").add(s));
+                    if (data.productos) data.productos.forEach(p => tx.objectStore("productos").add(p));
+                    if (data.pedidos) data.pedidos.forEach(p => tx.objectStore("pedidos").add(p));
 
                     tx.oncomplete = () => {
-                        alert("¡Inventario e Secciones importados exitosamente!");
+                        alert("¡Respaldo Total restaurado con éxito!");
                         fileInput.value = "";
-                        renderAdminConfig();
+                        location.reload();
                     };
 
                 } catch (err) {
-                    alert("Ocurrió un error al leer el archivo JSON.");
+                    alert("Ocurrió un error al procesar el archivo JSON.");
                 }
             };
             reader.readAsText(file);
